@@ -1,0 +1,13 @@
+.dub
+docs/
+/shaders_test
+shaders_test.so
+shaders_test.dylib
+shaders_test.dll
+shaders_test.a
+shaders_test.lib
+*.exe
+*.o
+*.obj
+*.lst
+bin

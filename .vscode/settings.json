@@ -1,0 +1,10 @@
+{
+    "dscanner.ignoredKeys": [
+        "dscanner.suspicious.local_imports",
+        "dscanner.suspicious.unmodified",
+        "dscanner.style.phobos_naming_convention",
+        "dscanner.style.undocumented_declaration",
+        "dscanner.style.long_line",
+        "dscanner.style.number_literals"
+    ]
+}

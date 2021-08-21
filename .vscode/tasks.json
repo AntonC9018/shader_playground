@@ -1,0 +1,14 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "compile_program",
+            "type": "dub",
+            "run": false,
+            "problemMatcher": [
+                "$dmd"
+            ],
+            "group": "build"
+        }
+    ]
+}
