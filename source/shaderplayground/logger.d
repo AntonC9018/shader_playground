@@ -1,4 +1,4 @@
-module logger;
+module shaderplayground.logger;
 import std.stdio;
 
 enum LogType : int 

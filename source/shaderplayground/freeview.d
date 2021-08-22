@@ -28,7 +28,7 @@ From https://github.com/gecko0307/dagon
 
 */
 
-module freeview;
+module shaderplayground.freeview;
 
 import std.math;
 

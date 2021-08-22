@@ -1,6 +1,5 @@
-module initialization;
-
-import logger;
+module shaderplayground.initialization;
+import shaderplayground.logger;
 import bindbc.glfw;
 
 __gshared GLFWwindow* g_Window;

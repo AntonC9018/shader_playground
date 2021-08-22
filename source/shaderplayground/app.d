@@ -1,4 +1,4 @@
-module app;
+module shaderplayground.app;
 import std.string;
 import dlib.math; 
 
@@ -135,8 +135,8 @@ void run()
 {
     import bindbc.opengl;
     import bindbc.glfw;
-    import initialization : g_Window;
-    import shaderloader;
+    import shaderplayground.initialization : g_Window;
+    import shaderplayground.shaderloader;
 
     glfwSwapInterval(1);
 

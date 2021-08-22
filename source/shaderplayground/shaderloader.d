@@ -27,13 +27,13 @@ DEALINGS IN THE SOFTWARE.
 From https://github.com/gecko0307/dagon
 */
 
-module shaderloader;
+module shaderplayground.shaderloader;
 
 import std.stdio;
 import std.string: stripRight;
 import bindbc.opengl;
 import std.algorithm.comparison : min;
-import logger;
+import shaderplayground.logger;
 
 enum ShaderStage: ubyte
 {
