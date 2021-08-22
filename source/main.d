@@ -1,4 +1,4 @@
-module mmain;
+module main;
 
 void main(string[] args)
 {

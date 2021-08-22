@@ -9,6 +9,16 @@
                 "$dmd"
             ],
             "group": "build"
+        },
+        {
+            "label": "compile_tests",
+            "type": "dub",
+            "run": false,
+            "problemMatcher": [
+                "$dmd"
+            ],
+            "group": "build",
+            "args": ["--build=unittest", "--force"]
         }
     ]
 }

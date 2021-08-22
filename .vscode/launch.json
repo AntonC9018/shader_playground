@@ -19,6 +19,22 @@
                 "/c/": "C:/",
                 "c:\\": "C:\\"
             }
+        },
+        {
+            "name": "(Windows) Test",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/shaders_test-test-library.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": "compile_tests",
+            "sourceFileMap": {
+                "/c/": "C:/",
+                "c:\\": "C:\\"
+            }
         }
     ]
 }
