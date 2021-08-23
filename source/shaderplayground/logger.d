@@ -22,12 +22,12 @@ import std.traits : isSomeString;
 
 void error(T)(ref Logger logger, T t)
 {   
-    stderr.writefln("[%s] (Error) %s.", logger.name, t);
+    stderr.writefln("[%s] (Error) %s", logger.name, t);
     logger.recordedLogTypes |= LogType.Error;
 }
 
 void log(T)(ref Logger logger, T t)
 {
-    stdout.writefln("[%s] %s.", logger.name, t);
+    stdout.writefln("[%s] %s", logger.name, t);
     logger.recordedLogTypes |= LogType.Log;
 }

@@ -4,8 +4,7 @@
 	],
 	"dependencies": {
 		"bindbc-glfw": "~>1.0.0",
-		"bindbc-opengl": "~>1.0.0",
-		"pattern": "~>1.0.1"
+		"bindbc-opengl": "~>1.0.0"
 	},
 	"license": "proprietary",
 	"name": "shaders_test",
