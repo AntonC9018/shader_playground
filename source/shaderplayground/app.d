@@ -42,9 +42,10 @@ void run()
     import shaderplayground.shader_to_d;
     import bindbc.opengl;
     import bindbc.glfw;
-    import shaderplayground.initialization : g_Window;
+    import shaderplayground.initialization;
     import shaderplayground.shaderloader;
     import std.conv;
+    import imgui;
 
     glfwSwapInterval(1);
 
@@ -70,15 +71,31 @@ void run()
     if (!program.initialize()) return;
     buffer.queryLocations(program.id);
     buffer.setupAttributes();
- 
+
     while (!glfwWindowShouldClose(g_Window))
     {
+		glfwPollEvents();
+
+        auto io = &ImGui.GetIO();
+        ImguiImpl.NewFrame();
+
+		{
+			ImGui.Begin("Main Window", ImGuiWindowFlags);
+			static int counter = 0;
+			if (ImGui.Button("Button")) counter++;
+			ImGui.SameLine();
+			ImGui.Text("counter = %d", counter);
+			ImGui.Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui.GetIO().Framerate, ImGui.GetIO().Framerate);
+			ImGui.End();
+		}
+
+		ImGui.Render();
+
         float ratio;
         int width, height;
- 
+		glfwMakeContextCurrent(g_Window);
         glfwGetFramebufferSize(g_Window, &width, &height);
         ratio = width / cast(float) height;
- 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -88,10 +105,12 @@ void run()
 
         program.use();
         program.uModelViewProjection.set(mvp);
-        program.uThing.set(vec3(1, 2, 3));
+        auto uthing = vec3(1, 2, 3);
+        program.uThing.set(uthing);
         glDrawArrays(GL_TRIANGLES, 0, 3);
+		ImguiImpl.RenderDrawData(ImGui.GetDrawData());
 
-        glfwSwapBuffers(g_Window);
-        glfwPollEvents();
+		glfwMakeContextCurrent(g_Window);
+		glfwSwapBuffers(g_Window);
     }
 }
