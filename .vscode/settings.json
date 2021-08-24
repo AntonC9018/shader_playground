@@ -6,6 +6,11 @@
         "dscanner.style.undocumented_declaration",
         "dscanner.style.long_line",
         "dscanner.style.number_literals",
-        "dscanner.suspicious.length_subtraction"
+        "dscanner.suspicious.length_subtraction",
+        "dscanner.unused_result",
+        "dscanner.unused_result",
+        "dscanner.useless.final",
+        "dscanner.unnecessary.duplicate_attribute",
+        "dscanner.suspicious.redundant_parens"
     ]
 }

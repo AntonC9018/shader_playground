@@ -80,7 +80,7 @@ void run()
         ImguiImpl.NewFrame();
 
 		{
-			ImGui.Begin("Main Window", ImGuiWindowFlags);
+			ImGui.Begin("Main Window");
 			static int counter = 0;
 			if (ImGui.Button("Button")) counter++;
 			ImGui.SameLine();

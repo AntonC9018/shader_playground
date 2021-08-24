@@ -10,4 +10,7 @@ shaders_test.lib
 *.o
 *.obj
 *.lst
-bin
+
+bin/*
+!bin/glfw3.dll
+!bin/imgui.lib

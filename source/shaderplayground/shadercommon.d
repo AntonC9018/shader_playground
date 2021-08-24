@@ -113,34 +113,44 @@ struct Uniform(T)
         import std.string;
         location = glGetUniformLocation(programId, name.toStringz());
     }
-
-    void set(T value)
+    
+    template TypeSuffix(T)
     {
-        template TypeSuffix(T)
-        {
-            static if (is(T == float))
-                enum TypeSuffix = "f";
-            else static if (is(T == int))
-                enum TypeSuffix = "i";
-            else static if (is(T == uint))
-                enum TypeSuffix = "ui";
-            else
-                static assert(0);
-        }
-        import std.conv : to;
-
-        static if (is(T == float) || is(T == int) || is(T == uint))
+        static if (is(T == float))
+            enum TypeSuffix = "f";
+        else static if (is(T == int))
+            enum TypeSuffix = "i";
+        else static if (is(T == uint))
+            enum TypeSuffix = "ui";
+        else
+            static assert(0);
+    }
+    
+    static if (is(T == float) || is(T == int) || is(T == uint)) 
+    {
+        void set(T value)
         {
             mixin(`glUniform1` ~ TypeSuffix!(T) ~ `(location, value);`);
+            errors("Uniform " ~ name);
         }
-        else static if (is(T : Vector!Args, Args...))
+    }
+    else
+    {
+        void set(const ref T value)
         {
-            mixin(`glUniform` ~ Args[1].to!string() ~ TypeSuffix!(Args[0]) ~ `v(location, 1, value.arrayof.ptr);`);
+            import std.conv : to;
+
+            enum string Suffix(T, int N) = N.to!string() ~ TypeSuffix!(T) ~ "v";
+
+            static if (is(T : Vector!(T, N), T, int N))
+            {
+                mixin(`glUniform` ~ Suffix!(T, N))(location, 1, cast(T*) &value);
+            }
+            else static if (is(T : Matrix!(T, N), T, int N))
+            {
+                mixin(`glUniformMatrix` ~ Suffix!(T, N))(location, 1, GL_FALSE, cast(T*) &value);
+            }
+            errors("Uniform " ~ name);
         }
-        else static if (is(T : Matrix!Args, Args...))
-        {
-            mixin(`glUniformMatrix` ~ Args[1].to!string() ~ TypeSuffix!(Args[0]) ~ `v(location, 1, GL_FALSE, value.arrayof.ptr);`);
-        }
-        errors("Uniform " ~ name);
     }
 }

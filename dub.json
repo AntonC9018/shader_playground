@@ -9,7 +9,13 @@
 	"license": "proprietary",
 	"name": "shaders_test",
 	"targetPath": "bin",
-	"versions": [
-		"GL_33"
+	"workingDirectory": "bin",
+	"versions": ["GLFW_33", "GL_46"],
+	"libs": ["lib/imgui"],
+	"lflags-windows": [
+		"/LIBPATH:bin",
+		"/NODEFAULTLIB:libcmt",
+		"/NODEFAULTLIB:libvcruntime",
+		"/NODEFAULTLIB:libucrt"
 	]
 }

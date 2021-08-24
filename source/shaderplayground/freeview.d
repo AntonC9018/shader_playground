@@ -101,7 +101,7 @@ class FreeviewComponent
         setZoom(20.0f);
     }
     
-    void reset()
+    final void reset()
     {
         center = Vector3f(0.0f, 0.0f, 0.0f);
         rotPitch = rotationQuaternion(Vector3f(1.0f,0.0f,0.0f), 0.0f);
@@ -139,7 +139,7 @@ class FreeviewComponent
         setZoom(20.0f);
     }
     
-    void update(float time)
+    final void update(float time)
     {
         static if (false)
         {
@@ -209,44 +209,44 @@ class FreeviewComponent
         }
     }
     
-    void setRotation(float p, float t, float r)
+    final void setRotation(float p, float t, float r)
     {
         rotPitchTheta = p;
         rotTurnTheta = t;
         rotRollTheta = r;
     }
     
-    void pitch(float theta)
+    final void pitch(float theta)
     {
         rotPitchTheta += theta;
     }
 
-    void turn(float theta)
+    final void turn(float theta)
     {
         rotTurnTheta += theta;
     }
 
-    void roll(float theta)
+    final void roll(float theta)
     {
         rotRollTheta += theta;
     }
 
-    float pitch()
+    final float pitch()
     {
         return rotPitchTheta;
     }
 
-    float turn()
+    final float turn()
     {
         return rotTurnTheta;
     }
 
-    float roll()
+    final float roll()
     {
         return rotRollTheta;
     }
 
-    void pitchSmooth(float theta, float smooth)
+    final void pitchSmooth(float theta, float smooth)
     {
         pitchTargetTheta += theta;
         float pitchTheta = (pitchTargetTheta - pitchCurrentTheta) / smooth;
@@ -254,7 +254,7 @@ class FreeviewComponent
         pitch(pitchTheta);
     }
 
-    void turnSmooth(float theta, float smooth)
+    final void turnSmooth(float theta, float smooth)
     {
         turnTargetTheta += theta;
         float turnTheta = (turnTargetTheta - turnCurrentTheta) / smooth;
@@ -262,7 +262,7 @@ class FreeviewComponent
         turn(turnTheta);
     }
 
-    void rollSmooth(float theta, float smooth)
+    final void rollSmooth(float theta, float smooth)
     {
         rollTargetTheta += theta;
         float rollTheta = (rollTargetTheta - rollCurrentTheta) / smooth;
@@ -270,28 +270,28 @@ class FreeviewComponent
         roll(rollTheta);
     }
 
-    void setTargetSmooth(Vector3f pos, float smooth)
+    final void setTargetSmooth(Vector3f pos, float smooth)
     {
         currentTranslate = center;
         targetTranslate = -pos;
     }
 
-    void translateTarget(Vector3f pos)
+    final void translateTarget(Vector3f pos)
     {
         center += pos;
     }
 
-    void setZoom(float z)
+    final void setZoom(float z)
     {
         distance = z;
     }
 
-    void zoom(float z)
+    final void zoom(float z)
     {
         distance -= z;
     }
 
-    void zoomSmooth(float z, float smooth)
+    final void zoomSmooth(float z, float smooth)
     {
         zoomSmoothFactor = smooth;
 
@@ -303,27 +303,27 @@ class FreeviewComponent
         targetZoom += abs(z);
     }
 
-    Vector3f position()
+    final Vector3f position()
     {
         return transform.translation();
     }
 
-    Vector3f right()
+    final Vector3f right()
     {
         return transform.right();
     }
 
-    Vector3f up()
+    final Vector3f up()
     {
         return transform.up();
     }
 
-    Vector3f direction()
+    final Vector3f direction()
     {
         return transform.forward();
     }
 
-    void strafe(float speed)
+    final void strafe(float speed)
     {
         Vector3f forward;
         forward.x = cos(degtorad(rotTurnTheta));
@@ -332,7 +332,7 @@ class FreeviewComponent
         center += forward * speed;
     }
 
-    void strafeSmooth(float speed, float smooth)
+    final void strafeSmooth(float speed, float smooth)
     {
         targetMove += speed;
         float movesp = (targetMove - currentMove) / smooth;
@@ -340,7 +340,7 @@ class FreeviewComponent
         strafe(movesp);
     }
 
-    void move(float speed)
+    final void move(float speed)
     {
         Vector3f dir;
         dir.x = cos(degtorad(rotTurnTheta + 90.0f));
@@ -349,7 +349,7 @@ class FreeviewComponent
         center += dir * speed;
     }
 
-    void moveSmooth(float speed, float smooth)
+    final void moveSmooth(float speed, float smooth)
     {
         targetStrafe += speed;
         float strafesp = (targetStrafe - currentStrafe) / smooth;
@@ -357,7 +357,7 @@ class FreeviewComponent
         move(strafesp);
     }
 
-    void screenToWorld(
+    final void screenToWorld(
         int scrx,
         int scry,
         int scrw,
@@ -391,7 +391,7 @@ class FreeviewComponent
         worldy = snap? floor(camPos.z - mz * camPos.y / my) : (camPos.z - mz * camPos.y / my);
     }
     
-    void onMouseButtonDown(int button)
+    final void onMouseButtonDown(int button)
     {
         if (!active)
             return;
@@ -404,7 +404,7 @@ class FreeviewComponent
         }
     }
     
-    void onMouseWheel(int x, int y)
+    final void onMouseWheel(int x, int y)
     {
         if (!active)
             return;
