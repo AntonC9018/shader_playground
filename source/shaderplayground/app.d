@@ -57,14 +57,10 @@ void run()
     buffer.create();
     buffer.bind();
     
-    VBuffer.Vertex v1;
-    v1.aColor    = vec3(0, 0, 1);
-    v1.aPosition = vec2(-0.6f, -0.4f);
-
     VBuffer.Vertex[3] vertexData = [
-        v1,
-        { vec3(1, 0, 0), vec2(0.6f,  -0.4f) },
-        { vec3(0, 1, 0), vec2(0.0f,  0.6f)  }
+        { aColor: vec3(0, 0, 1), aPosition: vec2(-0.6f, -0.4f) },
+        { aColor: vec3(1, 0, 0), aPosition: vec2( 0.6f, -0.4f) },
+        { aColor: vec3(0, 1, 0), aPosition: vec2( 0.0f,  0.6f) }
     ];
     buffer.setData(vertexData);
 
