@@ -1,18 +1,34 @@
 module shaderplayground.app;
 import shaderplayground.logger;
-import shaderplayground.parsing;
 import shaderplayground.shadercommon;
+import shaderplayground.d_to_shader;
+import shaderplayground.initialization;
 
 import bindbc.opengl;
+import bindbc.glfw;
 import std.string;
 import dlib.math; 
 
-immutable string vertexShaderText = q{
-    #version 330 core
+struct TestUniforms
+{
+    // @Edit           int uInteger; 
+    // @Color          vec3 uColor;
+    // @Range(1, 2)    float uThing;
+    @Color           vec3 uThing;
+    // @Edit           vec4 uAnotherThing;
+    
+    /// These ones here are built in.
+    mat4 uModelViewProjection;
+}
 
-    in vec3 aColor;
-    in vec2 aPosition;
+struct TestAttribute
+{
+    vec3 aColor;
+    vec2 aPosition;
+}
 
+immutable string vertexShaderText = SHADER_HEADER 
+    ~ GetVertexAttributeShaderDeclarations!TestAttribute ~ q{
     uniform mat4 uModelViewProjection;
 
     out vec3 vColor;
@@ -24,11 +40,10 @@ immutable string vertexShaderText = q{
     }
 };
 
-immutable string fragmentShaderText = q{
-    #version 330 core
-
+immutable string fragmentShaderText = SHADER_HEADER ~ q{
     in vec3 vColor;
     out vec4 fragColor;
+
     uniform vec3 uThing;
 
     void main()
@@ -39,54 +54,44 @@ immutable string fragmentShaderText = q{
 
 void run()
 {
-    import shaderplayground.shader_to_d;
     import bindbc.opengl;
-    import bindbc.glfw;
-    import shaderplayground.initialization;
-    import shaderplayground.shaderloader;
     import std.conv;
     import imgui;
 
     glfwSwapInterval(1);
 
-    alias Info = ShaderProgramInfo!(vertexShaderText, fragmentShaderText);
-    alias VBuffer = VertexBuffer!(Info.vertexAttributeInfos);
-    Info.ShaderProgram program;
-    VBuffer buffer;
+    ShaderProgram!TestUniforms program;
+    VertexBuffer!TestAttribute buffer;
+    TestUniforms uniforms;
+    uniforms.uThing = vec3(1, 1, 1);
+
+    if (!program.initialize(vertexShaderText, fragmentShaderText)) return;
 
     buffer.create();
     buffer.bind();
+    buffer.setup(program.id);
     
-    VBuffer.Vertex[3] vertexData = [
+    TestAttribute[] vertexData = [
         { aColor: vec3(0, 0, 1), aPosition: vec2(-0.6f, -0.4f) },
         { aColor: vec3(1, 0, 0), aPosition: vec2( 0.6f, -0.4f) },
         { aColor: vec3(0, 1, 0), aPosition: vec2( 0.0f,  0.6f) }
     ];
     buffer.setData(vertexData);
 
-    if (!program.initialize()) return;
-    buffer.queryLocations(program.id);
-    buffer.setupAttributes();
-
     while (!glfwWindowShouldClose(g_Window))
     {
 		glfwPollEvents();
 
         auto io = &ImGui.GetIO();
+        
         ImguiImpl.NewFrame();
-
 		{
 			ImGui.Begin("Main Window");
-			static int counter = 0;
-			if (ImGui.Button("Button")) counter++;
-			ImGui.SameLine();
-			ImGui.Text("counter = %d", counter);
-			ImGui.Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui.GetIO().Framerate, ImGui.GetIO().Framerate);
+            doImgui(&uniforms);
 			ImGui.End();
 		}
-
 		ImGui.Render();
-
+        
         float ratio;
         int width, height;
 		glfwMakeContextCurrent(g_Window);
@@ -97,13 +102,12 @@ void run()
 
         mat4 model = rotationQuaternion(Vector3f(1.0f, 0.0f, 0.0f), cast(float) glfwGetTime()).toMatrix4x4();
         mat4 projection = orthoMatrix(-ratio, ratio, -1.0f, 1.0f, 1.0f, -1.0f);
-        mat4 mvp = projection * model;
+        uniforms.uModelViewProjection = projection * model;
 
         program.use();
-        program.uModelViewProjection.set(mvp);
-        auto uthing = vec3(1, 2, 3);
-        program.uThing.set(uthing);
+        program.setUniforms(&uniforms);
         glDrawArrays(GL_TRIANGLES, 0, 3);
+
 		ImguiImpl.RenderDrawData(ImGui.GetDrawData());
 
 		glfwMakeContextCurrent(g_Window);

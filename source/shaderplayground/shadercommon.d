@@ -15,6 +15,10 @@ alias bvec2 = Vector!(bool, 2);
 alias bvec3 = Vector!(bool, 3);
 alias bvec4 = Vector!(bool, 4);
 
+
+enum string SHADER_HEADER = "#version 330 core\n";
+
+
 struct VertexAttributeInfo(T, int loc)
 {
     string name;
@@ -138,6 +142,7 @@ struct Uniform(T)
     {
         void set(const ref T value)
         {
+            if (location == -1) return;
             import std.conv : to;
 
             enum string Suffix(T, int N) = N.to!string() ~ TypeSuffix!(T) ~ "v";
