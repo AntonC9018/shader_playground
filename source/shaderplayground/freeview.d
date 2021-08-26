@@ -38,10 +38,12 @@ import dlib.math.quaternion;
 import dlib.math.transformation;
 import dlib.math.utils;
 
-class FreeviewComponent
+import shaderplayground.input;
+
+
+struct FreeviewComponent
 {
-    int prevMouseX;
-    int prevMouseY;
+    Vector2d prevMousePosition;
     float mouseSensibility = 0.1f;
     
     Vector3f center;
@@ -76,30 +78,13 @@ class FreeviewComponent
     float zoomSmoothFactor = 2.0f;
     float translateSmoothFactor = 10.0f;
 
-    Vector3f currentTranslate;
-    Vector3f targetTranslate;
+    float speed = 0.05f;
+
+    Vector3f currentTranslate = Vector3f(0.0f, 0.0f, 0.0f);
+    Vector3f targetTranslate = Vector3f(0.0f, 0.0f, 0.0f);
 
     bool movingToTarget = false;
-    
     bool active = true;
-    
-    this()
-    {
-        center = Vector3f(0.0f, 0.0f, 0.0f);
-        rotPitch = rotationQuaternion(Vector3f(1.0f,0.0f,0.0f), 0.0f);
-        rotTurn = rotationQuaternion(Vector3f(0.0f,1.0f,0.0f), 0.0f);
-        rotRoll = rotationQuaternion(Vector3f(0.0f,0.0f,1.0f), 0.0f);
-        transform = Matrix4x4f.identity;
-        invTransform = Matrix4x4f.identity;
-        distance = 10.0f;
-        
-        currentTranslate = Vector3f(0.0f, 0.0f, 0.0f);
-        targetTranslate = Vector3f(0.0f, 0.0f, 0.0f);
-        
-        pitch(45.0f);
-        turn(45.0f);
-        setZoom(20.0f);
-    }
     
     final void reset()
     {
@@ -110,6 +95,7 @@ class FreeviewComponent
         transform = Matrix4x4f.identity;
         invTransform = Matrix4x4f.identity;
         distance = 10.0f;
+        speed = 0.05f;
         
         currentTranslate = Vector3f(0.0f, 0.0f, 0.0f);
         targetTranslate = Vector3f(0.0f, 0.0f, 0.0f);
@@ -136,42 +122,44 @@ class FreeviewComponent
         
         pitch(45.0f);
         turn(45.0f);
-        setZoom(20.0f);
+        setZoom(1.0f);
     }
-    
+
     final void update(float time)
     {
-        static if (false)
-        {
-            processEvents();
-            
-            if (active)
-            {
-                if (eventManager.mouseButtonPressed[MB_RIGHT])
-                {
-                    float shiftx = (eventManager.mouseX - prevMouseX) * mouseSensibility;
-                    float shifty = -(eventManager.mouseY - prevMouseY) * mouseSensibility;
-                    Vector3f trans = up * shifty + right * shiftx;
-                    translateTarget(trans);
-                }
-                else if (eventManager.mouseButtonPressed[MB_LEFT] && eventManager.keyPressed[KEY_LCTRL])
-                {
-                    float shiftx = (eventManager.mouseX - prevMouseX);
-                    float shifty = (eventManager.mouseY - prevMouseY);
-                    zoom((shiftx + shifty) * 0.1f);
-                }
-                else if (eventManager.mouseButtonPressed[MB_LEFT])
-                {                
-                    float t = (eventManager.mouseX - prevMouseX);
-                    float p = (eventManager.mouseY - prevMouseY);
-                    pitchSmooth(p, 4.0f);
-                    turnSmooth(t, 4.0f);
-                }
+        import shaderplayground.initialization : g_Window;
+        import bindbc.glfw;
 
-                prevMouseX = eventManager.mouseX;
-                prevMouseY = eventManager.mouseY;
+        if (active)
+        {
+            if (getMouseDown(MOUSE_BUTTON.RIGHT))
+            {
+                auto shift = (getMousePosition() - prevMousePosition) * mouseSensibility;
+                Vector3f trans = up * shift.y + right * shift.x;
+                translateTarget(trans);
             }
+            else if (getMouseDown(MOUSE_BUTTON.LEFT) && getKeyDown(KEY.LEFT_CONTROL))
+            {
+                auto shift = getMousePosition() - prevMousePosition;
+                zoom((shift.x + shift.y) * 0.1f);
+            }
+            else if (getMouseDown(MOUSE_BUTTON.LEFT))
+            {      
+                auto tp = getMousePosition() - prevMousePosition;
+                pitchSmooth(tp.y, 4.0f);
+                turnSmooth(tp.x, 4.0f);
+            }
+
+            if (getKeyDown(KEY.W))
+                translateTarget(transform.forward * speed);
+            if (getKeyDown(KEY.S))
+                translateTarget(-transform.forward * speed);
+            if (getKeyDown(KEY.A))
+                translateTarget(transform.right * speed);
+            if (getKeyDown(KEY.D))
+                translateTarget(-transform.right * speed);
         }
+        prevMousePosition = getMousePosition();
 
         if (currentZoom < targetZoom)
         {
@@ -194,19 +182,9 @@ class FreeviewComponent
 
         Quaternionf q = rotPitch * rotTurn * rotRoll;
         Matrix4x4f rot = q.toMatrix4x4();
-        invTransform = translationMatrix(Vector3f(0.0f, 0.0f, -distance)) * rot * translationMatrix(center);
 
+        invTransform = translationMatrix(Vector3f(0.0f, 0.0f, -distance)) * rot * translationMatrix(center);
         transform = invTransform.inverse;
-        static if (false)
-        {
-        entity.prevTransformation = entity.transformation;
-        entity.transformation = transform;
-        entity.invTransformation = invTransform;
-        
-        entity.absoluteTransformation = entity.transformation;
-        entity.invAbsoluteTransformation = entity.invTransformation;
-        entity.prevAbsoluteTransformation = entity.prevTransformation;
-        }
     }
     
     final void setRotation(float p, float t, float r)
@@ -216,35 +194,13 @@ class FreeviewComponent
         rotRollTheta = r;
     }
     
-    final void pitch(float theta)
-    {
-        rotPitchTheta += theta;
-    }
+    final void pitch(float theta) { rotPitchTheta += theta; }
+    final void turn(float theta) { rotTurnTheta += theta; }
+    final void roll(float theta) { rotRollTheta += theta; }
 
-    final void turn(float theta)
-    {
-        rotTurnTheta += theta;
-    }
-
-    final void roll(float theta)
-    {
-        rotRollTheta += theta;
-    }
-
-    final float pitch()
-    {
-        return rotPitchTheta;
-    }
-
-    final float turn()
-    {
-        return rotTurnTheta;
-    }
-
-    final float roll()
-    {
-        return rotRollTheta;
-    }
+    final float pitch() { return rotPitchTheta; }
+    final float turn() { return rotTurnTheta; }
+    final float roll() { return rotRollTheta; }
 
     final void pitchSmooth(float theta, float smooth)
     {
@@ -276,20 +232,9 @@ class FreeviewComponent
         targetTranslate = -pos;
     }
 
-    final void translateTarget(Vector3f pos)
-    {
-        center += pos;
-    }
-
-    final void setZoom(float z)
-    {
-        distance = z;
-    }
-
-    final void zoom(float z)
-    {
-        distance -= z;
-    }
+    final void translateTarget(Vector3f pos) { center += pos; }
+    final void setZoom(float z) { distance = z; }
+    final void zoom(float z) { distance -= z; }
 
     final void zoomSmooth(float z, float smooth)
     {
@@ -303,25 +248,10 @@ class FreeviewComponent
         targetZoom += abs(z);
     }
 
-    final Vector3f position()
-    {
-        return transform.translation();
-    }
-
-    final Vector3f right()
-    {
-        return transform.right();
-    }
-
-    final Vector3f up()
-    {
-        return transform.up();
-    }
-
-    final Vector3f direction()
-    {
-        return transform.forward();
-    }
+    final Vector3f position() { return transform.translation(); }
+    final Vector3f right() { return transform.right(); }
+    final Vector3f up() { return transform.up(); }
+    final Vector3f direction() { return transform.forward(); }
 
     final void strafe(float speed)
     {
@@ -383,32 +313,21 @@ class FreeviewComponent
         float width  = 1.0f - 2.0f * cast(float)(scrx) / cast(float)(scrw);
         float height = 1.0f - 2.0f * cast(float)(scry) / cast(float)(scrh);
 
-        float mx = camDir.x + camUp.x * height + camRight.x * width;
-        float my = camDir.y + camUp.y * height + camRight.y * width;
-        float mz = camDir.z + camUp.z * height + camRight.z * width;
+        auto m = camDir + camUp * height + camRight * width;
 
-        worldx = snap? floor(camPos.x - mx * camPos.y / my) : (camPos.x - mx * camPos.y / my);
-        worldy = snap? floor(camPos.z - mz * camPos.y / my) : (camPos.z - mz * camPos.y / my);
+        worldx = snap ? floor(camPos.x - m.x * camPos.y / m.y) : (camPos.x - m.x * camPos.y / m.y);
+        worldy = snap ? floor(camPos.z - m.z * camPos.y / m.y) : (camPos.z - m.z * camPos.y / m.y);
     }
-    
-    final void onMouseButtonDown(int button)
+
+    final void lookAt(Vector3f point)
     {
-        if (!active)
-            return;
-    
-        static if (false) 
-        if (button == 0)
-        {
-            prevMouseX = eventManager.mouseX;
-            prevMouseY = eventManager.mouseY;
-        }
+        auto q = lookAtQuaternion(position, point, vec3(0, 0, 1));
+        setRotation(q.p, q.t, q.r);
     }
-    
-    final void onMouseWheel(int x, int y)
+
+    final void onMouseScroll(Vector2d offset)
     {
-        if (!active)
-            return;
-            
-        zoom(cast(float)y * 0.2f);
+        if (active)
+            zoom(cast(float) offset.y * 0.2f);
     }
 }

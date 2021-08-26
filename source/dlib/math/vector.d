@@ -131,16 +131,10 @@ struct Vector(T, int size)
     */
     void opAssign(T2, int size2)(Vector!(T2,size2) v)
     {
-        if (v.arrayof.length >= size)
-        {
-            foreach(i; 0..size)
-                arrayof[i] = cast(T)v.arrayof[i];
-        }
-        else
-        {
-            foreach(i; 0..v.arrayof.length)
-                arrayof[i] = cast(T)v.arrayof[i];
-        }
+        import std.algorithm : min;
+        auto upto = min(size, size2);
+        foreach (i; 0..upto)
+            arrayof[i] = cast(T) v.arrayof[i];
     }
 
    /**

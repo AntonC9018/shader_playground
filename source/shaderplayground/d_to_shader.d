@@ -64,7 +64,7 @@ private void doEdit(T)(string name, T* memory)
 {
     static if (is(T == float))
     {
-        ImGui.InputFloat(name.toStringz, memory, 0.2, 0, 1);
+        ImGui.InputFloat(name.toStringz, memory, 0.2, 1);
     }
     else static if (is(T == int))
     {
@@ -92,7 +92,7 @@ private void doColor(T)(string name, T* vector)
 private void doRange(T)(string name, Range range, T* memory)
 if (is(T == float))
 {
-    ImGui.DragFloat(name.toStringz, memory, 1, range.a, range.b);
+    ImGui.SliderFloat(name.toStringz, memory, range.a, range.b);
 }
 
 struct UniformInfo(TUniforms)
@@ -180,7 +180,7 @@ void doImgui(TUniforms)(TUniforms* uniforms)
 {
     static foreach (field; TUniforms.tupleof)
     {{
-        enum name = __traits(identifier, field).stringof;
+        enum name = __traits(identifier, field);
         auto memory = &__traits(child, uniforms, field);
 
         // Builtin property

@@ -388,6 +388,14 @@ struct Quaternion(T)
             return q;
         }
 
+        static Quaternion!(T) fromAxisAngle(T)(Vector!(T, 3) axis, T angle)
+        {
+            import std.math : sin, cos;
+            T halfAngle = angle * 0.5;
+            return Quaternion!(T)(axis * sin(halfAngle), cos(halfAngle));
+        }
+
+
        /**
         * Setup the Euler angles, given a rotation Quaternion.
         * Returned x,y,z are in radians
@@ -778,4 +786,24 @@ do
 
     qa = qcurr * exp( arg);
     qb = qcurr * exp(-arg);
+}
+
+
+Quaternion!(T) lookAtQuaternion(T)(Vector!(T, 3) eye, Vector!(T, 3) point, Vector!(T, 3) up)
+{
+    T dot = dot(eye, point);
+
+    import std.math : abs, acos;
+    if (abs(dot - (-1.0f)) < 0.000001f)
+    {
+        return Quaternion!(T)(up, PI);
+    }
+    if (abs(dot - (1.0f)) < 0.000001f)
+    {
+        return Quaternion!(T).identity;
+    }
+
+    T rotAngle = acos(dot);
+    auto rotAxis = cross(eye, point).normalized;
+    return Quaternion!(T).fromAxisAngle(rotAxis, rotAngle);
 }

@@ -19,64 +19,6 @@ alias bvec4 = Vector!(bool, 4);
 enum string SHADER_HEADER = "#version 330 core\n";
 
 
-struct VertexAttributeInfo(T, int loc)
-{
-    string name;
-
-    this(string name) { this.name = name; }
-
-    static if (loc == -1)
-    {
-        int location = -1;
-       
-        void findLocation(int programId)
-        {
-            import std.string;
-            location = glGetAttribLocation(programId, name.toStringz());
-        }
-    }
-    else
-        enum location = loc;
-
-    
-    void setupInBuffer(GLsizei totalSize, ref uint currentOffset)
-    {
-        import std.traits;
-        import std.meta;
-
-        template GlType(T)
-        {
-            static if (is(T == int))
-                enum GlType = GL_INT;
-            else static if (is(T == float))
-                enum GlType = GL_FLOAT;
-            else static assert(0);
-        } 
-
-        glEnableVertexAttribArray(location);
-
-        static if (is(T : float) || is(T : int))
-        {
-            glVertexAttribPointer(location, 1, GlType!(T), GL_FALSE, totalSize, cast(void*) currentOffset);
-            currentOffset += 4;
-        }
-        else static if (is(T : Vector!Args, Args...))
-        {
-            glVertexAttribPointer(location, Args[1], GlType!(Args[0]), GL_FALSE, totalSize, cast(void*) currentOffset);
-            currentOffset += Args[1] * 4;
-        }
-        else 
-        {
-            pragma(msg, T);
-            static assert(0);
-        }
-
-        errors("Vertex " ~ name);
-        g_Logger.log(location);
-    } 
-}
-
-
 string getErrorMessage(GLenum code)
 {
     switch (code)

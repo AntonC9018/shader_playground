@@ -47,10 +47,10 @@ void initialize()
 
 
     auto vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    int width = 640; 
-    int height = 480;
-    width = min(width, vidMode.width);
-    height = min(height, vidMode.height);
+    int width = vidMode.width; 
+    int height = vidMode.height;
+    // width = min(width, vidMode.width);
+    // height = min(height, vidMode.height);
 
     glfwWindowHint(GLFW_VISIBLE, 0);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
@@ -62,7 +62,7 @@ void initialize()
         return;
     }
     g_Window = window;
-    glfwSetWindowPos(window, (vidMode.width - width) / 2, (vidMode.height - height) / 2);
+    // glfwSetWindowPos(window, (vidMode.width - width) / 2, (vidMode.height - height) / 2);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     glfwShowWindow(window);
