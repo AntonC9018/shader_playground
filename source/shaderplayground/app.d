@@ -24,7 +24,9 @@ struct TestUniforms
     /// These ones here are built in.
     mat4 uModelViewProjection;
     mat3 uModelViewInverseTranspose;
-    mat4 uModel;
+    mat4 uModelView;
+    mat4 uView;
+    // mat4 uModel;
 
     float uFOV = 70;
 }
@@ -32,34 +34,31 @@ struct TestUniforms
 struct TestAttribute
 {
     // vec3 aColor;
-    // vec3 aNormal;
+    vec3 aNormal;
     vec3 aPosition;
 }
 
 immutable string vertexShaderText = SHADER_HEADER 
     ~ VertexAttributeShaderDeclarations!TestAttribute ~ q{
     uniform mat4 uModelViewProjection;
-    uniform mat4 uModel;
-    uniform mat4 uView;
+    uniform mat4 uModelView;
     uniform mat3 uModelViewInverseTranspose;
 
-    // out vec3 vNormal;
+    out vec3 vNormal;
     out vec4 vECPosition;
-    out vec4 vClipSpacePosition;
 
     void main()
     {
         gl_Position = uModelViewProjection * vec4(aPosition, 1.0);
-        vClipSpacePosition = gl_Position;
-        vECPosition = uModel * vec4(aPosition, 1.0);
-        // vNormal = uModelViewInverseTranspose * aNormal;
+        vECPosition = uModelView * vec4(aPosition, 1.0);
+        vNormal = uModelViewInverseTranspose * aNormal;
     }
 };
 
 immutable string fragmentShaderText = SHADER_HEADER ~ q{
-    // in vec3 vNormal;
-    // in vec4 vECPosition;
-    in vec4 vClipSpacePosition;
+    in vec3 vNormal;
+    in vec4 vECPosition;
+    uniform mat4 uView;
 
     out vec4 fragColor;
 
@@ -71,10 +70,11 @@ immutable string fragmentShaderText = SHADER_HEADER ~ q{
 
     void main()
     {
-        // vec4 to_light_vector = normalize(light_source - vECPosition);
-        // float diffuse = dot(vec3(to_light_vector), vNormal) * uDiffuse;
-        // float sum = uAmbient + diffuse;
-        fragColor = vec4(uColor * vClipSpacePosition.z, 1.0);
+        vec4 to_light_vector = normalize(uView * light_source - vECPosition);
+        float diffuse = dot(vec3(to_light_vector), vNormal) * uDiffuse;
+        float ambient = uAmbient;
+        float sum = ambient + diffuse;
+        fragColor = vec4(uColor * sum, 1.0);
     }
 };
 
@@ -111,7 +111,8 @@ void run()
     if (!program.initialize(vertexShaderText, fragmentShaderText)) return;
 
     auto sphereCreator = new IcoSphereCreator();
-    auto geometry = sphereCreator.Create(3);
+    const recursionCount = 3;
+    auto geometry = sphereCreator.Create(recursionCount);
     buffer.create();
     buffer.bind();
     buffer.setup(program.id);
@@ -119,7 +120,7 @@ void run()
     foreach (i, position; geometry.Positions)
     {
         vertexData[i].aPosition = position;
-        // vertexData[i].aNormal = position.normalized;
+        vertexData[i].aNormal = position.normalized;
     }
     // TestAttribute[] vertexData = [
     //     { aNormal: vec3(1, 1, 1), aPosition: vec3( 0, 0, 0) },
@@ -176,7 +177,8 @@ void run()
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
-        // glCullFace(GL_FRONT);
+        glEnable(GL_DEPTH_TEST);
+        glCullFace(GL_BACK);
 
         mat4 model      = mat4.identity; 
         mat4 projection = perspectiveMatrix(uniforms.uFOV, ratio, 0.1f, 100.0f);
