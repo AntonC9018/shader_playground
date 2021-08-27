@@ -154,23 +154,24 @@ void run()
         ImguiImpl.NewFrame();
         if (ImGui.Begin("Main Window"))
         {
+            ImGui.Text("User-defined uniforms");
             doImgui(&uniforms);
             ImGui.Separator();
 
+            ImGui.Text("Camera stuff");
             ImGui.DragFloat("Distance", &freeview.distance, 0.5, 0, 20); 
             ImGui.DragFloat("Mouse sensitivity", &freeview.mouseSensibility, 0.001, -0.2, 0.2); 
             ImGui.DragFloat("Speed", &freeview.speed, 0.001, -0.1, 0.1); 
             ImGui.DragFloat("FOV", &uniforms.uFOV, 1, 0, 100);
+            ImGui.Text(("Camera position: " ~ freeview.position.to!string()).toStringz());
             ImGui.Separator();
 
-            vec3 pos = freeview.position;
-            ImGui.Text(pos.to!string().toStringz());
         }
         freeview.active = !ImGui.IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
         ImGui.End();
 		ImGui.Render();
 
-        int width, height;
+        int width, height; 
 		glfwMakeContextCurrent(g_Window);
         glfwGetFramebufferSize(g_Window, &width, &height);
         float ratio = cast(float) width / height;
@@ -200,7 +201,6 @@ void run()
         program.use();
         program.setUniforms(&uniforms);
         glDrawElements(GL_TRIANGLES, cast(int) indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		ImguiImpl.RenderDrawData(ImGui.GetDrawData());
 
