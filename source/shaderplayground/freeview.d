@@ -319,9 +319,10 @@ struct FreeviewComponent
         worldy = snap ? floor(camPos.z - m.z * camPos.y / m.y) : (camPos.z - m.z * camPos.y / m.y);
     }
 
+    /// TODO: doesn't work
     final void lookAt(Vector3f point)
     {
-        auto q = lookAtQuaternion(position, point, vec3(0, 0, 1));
+        auto q = lookAtQuaternion(center, point, vec3(0, 0, 1));
         setRotation(q.p, q.t, q.r);
     }
 

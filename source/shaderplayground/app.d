@@ -31,6 +31,8 @@ struct TestUniforms
     float uFOV = 70;
 }
 
+/// The idea is that these vertex attributes are automatically mirrored 
+/// in the shader code below, so they are never out of sync
 struct TestAttribute
 {
     // vec3 aColor;
@@ -80,20 +82,16 @@ immutable string fragmentShaderText = SHADER_HEADER ~ q{
 
 struct Data
 {
+    // Camera data
     FreeviewComponent freeview;
+
     ShaderProgram!TestUniforms program;
     VertexBuffer!TestAttribute buffer;
     IndexBuffer indexBuffer;
     TestUniforms uniforms;
 }
-Data data;
+private Data data;
 
-extern(C) void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) nothrow
-{
-    // auto v = Vector2d(xOffset, yOffset);
-    // data.freeview.onMouseScroll(v);
-    data.uniforms.uFOV -= yOffset;
-}
 
 void run()
 {
@@ -101,27 +99,42 @@ void run()
     import imgui;
 
     glfwSwapInterval(1);
+
+    // Must be a plain function pointer, which is actually a shame.
+    // A delegate here would be really convenient.
+    static extern(C) void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) nothrow
+    {
+        // auto v = Vector2d(xOffset, yOffset);
+        // data.freeview.onMouseScroll(v);
+        data.uniforms.uFOV -= yOffset;
+    }
     glfwSetScrollCallback(g_Window, &scrollCallback);
 
-    with(data)
+    with(data) 
     {
     freeview.reset();
     freeview.lookAt(vec3(0, 0, 0));
+    freeview.translateTarget(vec3(0, 0, -2));
     
     if (!program.initialize(vertexShaderText, fragmentShaderText)) return;
 
-    auto sphereCreator = new IcoSphereCreator();
+    // This is lazy and inefficient code at the moment, but whatever 
     const recursionCount = 3;
+    auto sphereCreator = new IcoSphereCreator();
     auto geometry = sphereCreator.Create(recursionCount);
+
     buffer.create();
     buffer.bind();
     buffer.setup(program.id);
     TestAttribute[] vertexData = new TestAttribute[geometry.Positions.length];
     foreach (i, position; geometry.Positions)
     {
+        // Still needs to be adjusted manually after the attribute structure changes
+        // TODO: generate in a function and set this conditionally if the attribute has normals
         vertexData[i].aPosition = position;
         vertexData[i].aNormal = position.normalized;
     }
+    // A square
     // TestAttribute[] vertexData = [
     //     { aNormal: vec3(1, 1, 1), aPosition: vec3( 0, 0, 0) },
     //     { aNormal: vec3(1, 1, 1), aPosition: vec3( 0, 1, 0) },
@@ -165,7 +178,6 @@ void run()
             ImGui.DragFloat("FOV", &uniforms.uFOV, 1, 0, 100);
             ImGui.Text(("Camera position: " ~ freeview.position.to!string()).toStringz());
             ImGui.Separator();
-
         }
         freeview.active = !ImGui.IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
         ImGui.End();
@@ -191,6 +203,8 @@ void run()
                 __traits(getMember, data.uniforms, name) = expression();
         }
 
+        // Conditional setting of uniforms
+        // TODO: should be in a separate function
         set!("uModel",                      () => model);
         set!("uView",                       () => view);
         set!("uProjection",                 () => projection);
@@ -200,6 +214,7 @@ void run()
 
         program.use();
         program.setUniforms(&uniforms);
+        // TODO: encapsulate in a `Model` sort of thing.
         glDrawElements(GL_TRIANGLES, cast(int) indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
 
 		ImguiImpl.RenderDrawData(ImGui.GetDrawData());

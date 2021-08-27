@@ -113,9 +113,6 @@ struct UniformInfo(TUniforms)
     }
 }
 
-
-
-
 struct IndexBuffer
 {
     import std.algorithm;
@@ -182,9 +179,6 @@ struct VertexBuffer(TAttribute)
             }
             else static if (is(F : Vector!(T, N), T, int N))
             {
-                g_Logger.log(field.offsetof);
-                g_Logger.log(__traits(identifier, field));
-                g_Logger.log(TAttribute.sizeof);
                 glVertexAttribPointer(location, N, GlType!T, GL_FALSE, TAttribute.sizeof, cast(void*) field.offsetof);
             }
             else 
@@ -226,6 +220,7 @@ void doImgui(TUniforms)(TUniforms* uniforms)
         }
         else static foreach(attr; __traits(getAttributes, field))
         {
+            // Don't break, allow more than one ways to change a variable.
             static if (is(attr == Edit))
             {
                 doEdit(name, memory);
