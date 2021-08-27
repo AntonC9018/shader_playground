@@ -1,0 +1,19 @@
+
+struct Result(T)
+{
+    T result;
+    string error;
+    alias result this;
+
+    bool ok() { return error is null; }
+}
+
+auto error_result(T)(string error)
+{
+    return Result!(T)(T.init, error);
+}
+
+auto ok_result(T)(T value)
+{
+    return Result!(T)(value, null);
+} 

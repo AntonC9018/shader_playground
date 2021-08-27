@@ -17,7 +17,7 @@ struct Range
     float b;
 }
 
-template GetVertexAttributeShaderDeclarations(TAttribute)
+template VertexAttributeShaderDeclarations(TAttribute)
 {
     template Prefix(T)
     {
@@ -56,7 +56,7 @@ template GetVertexAttributeShaderDeclarations(TAttribute)
         }}
         return result;
     }
-    enum string GetVertexAttributeShaderDeclarations = _get();
+    enum string VertexAttributeShaderDeclarations = _get();
 }
 
 
@@ -110,6 +110,41 @@ struct UniformInfo(TUniforms)
             if (uniform.location < 0)
                 g_Logger.log("Uniform " ~ uniform.name ~ " failed to find location.");
         }
+    }
+}
+
+
+
+
+struct IndexBuffer
+{
+    import std.algorithm;
+    uint id;
+
+    void create()
+    {
+        glGenBuffers(1, &id);
+    }
+
+    void bind()
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
+    }
+
+    bool validateData(ivec3[] indices, size_t vertexCount)
+    {
+        foreach (tri; indices)
+        {
+            if (tri.arrayof[].any!(i => i >= vertexCount))
+                return false;
+        }
+
+        return true;
+    }
+
+    void setData(ivec3[] indices)
+    {
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.length * ivec3.sizeof, indices.ptr, GL_STATIC_DRAW);
     }
 }
 

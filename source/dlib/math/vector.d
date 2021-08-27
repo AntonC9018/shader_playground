@@ -50,6 +50,8 @@ import dlib.math.matrix;
  */
 struct Vector(T, int size)
 {
+    import std.algorithm : min;
+
     public:
 
    /**
@@ -58,16 +60,9 @@ struct Vector(T, int size)
     */
     this (T2, int size2)(Vector!(T2, size2) v)
     {
-        if (v.arrayof.length >= size)
-        {
-            foreach(i; 0..size)
-                arrayof[i] = cast(T)v.arrayof[i];
-        }
-        else
-        {
-            foreach(i; 0..v.arrayof.length)
-                arrayof[i] = cast(T)v.arrayof[i];
-        }
+        const upto = min(size, size2);
+        foreach (i; 0..upto)
+            arrayof[i] = cast(T) v.arrayof[i];
     }
 
    /**
@@ -75,16 +70,9 @@ struct Vector(T, int size)
     */
     this (A)(A components) if (isDynamicArray!A && !isSomeString!A)
     {
-        if (components.length >= size)
-        {
-            foreach(i; 0..size)
-                arrayof[i] = cast(T)components[i];
-        }
-        else
-        {
-            foreach(i; 0..components.length)
-                arrayof[i] = cast(T)components[i];
-        }
+        const upto = min(size, components.length);
+        foreach (i; 0..upto)
+            arrayof[i] = cast(T) components[i];
     }
 
    /**
@@ -92,16 +80,9 @@ struct Vector(T, int size)
     */
     this (T2, size_t arrSize)(T2[arrSize] components)
     {
-        if (components.length >= size)
-        {
-            foreach(i; 0..size)
-                arrayof[i] = cast(T)components[i];
-        }
-        else
-        {
-            foreach(i; 0..components.length)
-                arrayof[i] = cast(T)components[i];
-        }
+        const upto = min(size, components.length);
+        foreach (i; 0..upto)
+            arrayof[i] = cast(T) components[i];
     }
 
    /**
@@ -131,7 +112,6 @@ struct Vector(T, int size)
     */
     void opAssign(T2, int size2)(Vector!(T2,size2) v)
     {
-        import std.algorithm : min;
         auto upto = min(size, size2);
         foreach (i; 0..upto)
             arrayof[i] = cast(T) v.arrayof[i];

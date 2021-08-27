@@ -44,7 +44,7 @@ import shaderplayground.input;
 struct FreeviewComponent
 {
     Vector2d prevMousePosition;
-    float mouseSensibility = 0.1f;
+    float mouseSensibility = 0.01f;
     
     Vector3f center;
     float distance;
