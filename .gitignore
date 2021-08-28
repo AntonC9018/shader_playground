@@ -14,3 +14,5 @@ shaders_test.lib
 bin/*
 !bin/glfw3.dll
 !bin/imgui.lib
+
+vcg_ast

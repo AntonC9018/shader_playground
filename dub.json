@@ -17,5 +17,20 @@
 		"/NODEFAULTLIB:libcmt",
 		"/NODEFAULTLIB:libvcruntime",
 		"/NODEFAULTLIB:libucrt"
+	],
+	"targetType": "executable",
+	"configurations": [
+		{
+			"name": "default"
+		},
+		{
+			"name": "ast",
+			"dflags": [
+				"-vcg-ast"
+			],
+			"postBuildCommands": [
+				"rdmd move_vcg.d"
+			]
+		}
 	]
 }
