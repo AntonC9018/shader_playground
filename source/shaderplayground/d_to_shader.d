@@ -264,8 +264,10 @@ struct ShaderProgram(TUniforms)
     {
         import shaderplayground.shaderloader;
 
-        logger.log(vertexSource);
-        logger.log(fragmentSource);
+        import std.file;
+        if (!exists("temp")) mkdir("temp");
+        write(`temp\shader.vertex`, vertexSource);
+        write(`temp\shader.fragment`, fragmentSource);
 
         vertexShaderId = compileShader(vertexSource, ShaderStage.vertex); 
         fragmentShaderId = compileShader(fragmentSource, ShaderStage.fragment); 
