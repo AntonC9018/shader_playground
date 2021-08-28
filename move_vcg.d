@@ -18,7 +18,7 @@ void main()
 {
     foreach (string name; dirEntries("source", "*.cg", SpanMode.depth))
     {
-        auto newName = buildPath("vcg_ast", name.findSplitAfter(`source\`)[1].to!string());
+        auto newName = buildPath("vcg_ast", name.findSplitAfter(`source\`)[1]);
         moveFile(name, newName);
     }
 }
