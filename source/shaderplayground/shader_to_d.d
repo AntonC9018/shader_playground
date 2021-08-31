@@ -253,7 +253,7 @@ template mapFilter(alias func)
         struct MapFilter
         {
             R range;
-            Parameters!_func[1] front;
+            Unqual!(Parameters!_func[1]) front;
 
             bool empty;
 
