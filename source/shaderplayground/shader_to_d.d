@@ -224,53 +224,56 @@ unittest
     assert(variable.name == "b");
 }
 
-/// Checks for `bool function(TIn, out TOut)`.
-template isMapFunc(alias Func)
-{
-    import std.traits : ParameterStorageClassTuple, ParameterStorageClass, ReturnType;
-    alias type = typeof(Func);
-    alias psct = ParameterStorageClassTuple!type;
-    enum isMapFunc = psct[1] == ParameterStorageClass.out_ && is(ReturnType!Func == bool);
-}
-
 /// Takes in a `bool function(TIn, out TOut)` and an input range.
 /// Constructs a new input range, which consists of elements of type TOut.
 /// Only those elements are kept for which the function returned true.
-template mapFilter(alias Func)
-if (isMapFunc!Func)
+template mapFilter(alias func)
 {
-    import std.traits : Parameters;
-    alias TOut = Parameters!(typeof(Func))[1];
-
-    // TODO: deduce T from Func
-    auto mapFilter(R)(R range)
-    if (isInputRange!R)
+    template mapFilter(R) if (isInputRange!R)
     {
-        return MapFilter!(R)(range);
-    }
+        import std.traits;
 
-    struct MapFilter(R)
-    {
-        R range;
-        TOut front;
-        bool empty;
+        static if (__traits(isTemplate, func))
+            // template with one required template argument
+            // TODO: check if the template can be instantiated with exactly 1 argument before doing this.
+            alias _func = func!(ElementType!R);
+        else 
+            alias _func = func;
 
-        this(R range) 
-        { 
-            this.range = range; 
-            popFront(); 
-        }
+        static assert(isCallable!_func, "The provided function must be a callable object");
+        static assert(
+            ParameterStorageClassTuple!_func[1] == ParameterStorageClass.out_, 
+            "The second parameter must be an out parameter");
         
-        void popFront() 
+        auto mapFilter(R range)
+        { 
+            return MapFilter(range);
+        }
+
+        struct MapFilter
         {
-            while (!range.empty)
-            {
-                const rangeFront = range.front;
-                range.popFront();
-                // front gets value via `out`
-                if (Func(rangeFront, front)) return;
+            R range;
+            Parameters!_func[1] front;
+
+            bool empty;
+
+            this(R range) 
+            { 
+                this.range = range; 
+                popFront(); 
             }
-            empty = true;
+            
+            void popFront() 
+            {
+                while (!range.empty)
+                {
+                    const rangeFront = range.front;
+                    range.popFront();
+                    // front gets value via `out`
+                    if (_func(rangeFront, front)) return;
+                }
+                empty = true;
+            }
         }
     }
 }
@@ -288,6 +291,11 @@ unittest
     import std.algorithm.comparison : equal;
     auto result = [1, 2, -1, -2].mapFilter!(thing);
     assert(equal(result, [1u, 2u]));
+}
+unittest
+{
+    enum works = __traits(compiles, [1, 2, 3, 4].mapFilter!((a, out uint b) { b = a; return true; }));
+    assert(works);
 }
 
 auto getVariables(string input)

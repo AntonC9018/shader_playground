@@ -1,4 +1,7 @@
 {
+    "editor.tokenColorCustomizations": {
+        "comments": "#8e945d",
+    },
     "dscanner.ignoredKeys": [
         "dscanner.suspicious.local_imports",
         "dscanner.suspicious.unmodified",
