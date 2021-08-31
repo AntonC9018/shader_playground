@@ -237,19 +237,18 @@ void doImgui(TUniforms)(TUniforms* uniforms)
     }}
 }
 
-struct ShaderProgram(TUniforms)
+class ShaderProgram(TUniforms)
 {
     import std.range;
     import std.algorithm;
+    private static Logger logger = Logger("Shaders");
 
     UniformInfo!TUniforms uniformInfos;
-
     uint id;
     uint vertexShaderId;
     uint fragmentShaderId;
 
-    static Logger logger = Logger("Shaders");
-
+    this() {}
 
     void setUniforms(TUniforms* uniforms)
     {
@@ -287,4 +286,19 @@ struct ShaderProgram(TUniforms)
     {
         glUseProgram(id);
     }
+}
+
+void setupVertexBuffer(TAttribute)(ref VertexBuffer!TAttribute buffer, uint programId, TAttribute[] data)
+{
+    buffer.create();
+    buffer.bind();
+    buffer.setup(programId);
+    buffer.setData(data);
+}
+
+void setupIndexBuffer(ref IndexBuffer buffer, ivec3[] data)
+{
+    buffer.create();
+    buffer.bind();
+    buffer.setData(data);
 }

@@ -1,11 +1,23 @@
 module shaderplayground.initialization;
 import shaderplayground.logger;
+import shaderplayground.freeview;
 import bindbc.glfw;
 import bindbc.opengl;
 import imgui;
 public import ImguiImpl = imgui.glfw_impl;
+import dlib.math;
+
 
 __gshared GLFWwindow* g_Window;
+__gshared FreeviewComponent g_Camera;
+
+struct ScreenDimensions
+{
+    int width, height;
+    float ratio() { return cast(float) width / height; }
+}
+
+__gshared ScreenDimensions g_CurrentWindowDimensions;
 
 /// Loads GLFW, creates a window, sets it globally, Loads OpenGL 
 void initialize()
@@ -68,6 +80,7 @@ void initialize()
     glfwShowWindow(window);
 
 
+
     const GLSupport glLoadResult = loadOpenGL();
     if (glLoadResult < GLSupport.gl33) 
     {
@@ -94,6 +107,35 @@ void initialize()
         default: return;
         }
     }
+
+    
+    static void setupCamera()
+    {
+        g_Camera = new FreeviewComponent();
+        
+        // Must be a plain function pointer, which is actually a shame.
+        // A delegate here would be really convenient.
+        static extern(C) void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) nothrow
+        {
+            // auto v = Vector2d(xOffset, yOffset);
+            // data.freeview.onMouseScroll(v);
+            g_Camera.fov -= yOffset;
+        }
+        glfwSetScrollCallback(g_Window, &scrollCallback);
+
+        g_Camera.lookAt(vec3(0, 0, 0));
+        g_Camera.translateTarget(vec3(0, 0, -2));
+    }
+    setupCamera();
+
+    static extern(C) void resetScreenDimensions(GLFWwindow* window, int width, int height) nothrow
+    {
+        g_CurrentWindowDimensions.width = width;
+        g_CurrentWindowDimensions.height = width;
+        glViewport(0, 0, width, height);
+    }
+    glfwSetWindowSizeCallback(window, &resetScreenDimensions);
+    glfwGetWindowSize(window, &g_CurrentWindowDimensions.width, &g_CurrentWindowDimensions.height);
 
 
     ImGui.CreateContext();

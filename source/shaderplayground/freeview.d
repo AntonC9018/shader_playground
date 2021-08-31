@@ -41,7 +41,7 @@ import dlib.math.utils;
 import shaderplayground.input;
 
 
-struct FreeviewComponent
+class FreeviewComponent
 {
     Vector2d prevMousePosition;
     float mouseSensibility = 0.01f;
@@ -85,6 +85,10 @@ struct FreeviewComponent
 
     bool movingToTarget = false;
     bool active = true;
+
+    float fov = 80.0f;
+
+    this() { reset(); }
     
     final void reset()
     {
@@ -123,6 +127,8 @@ struct FreeviewComponent
         pitch(45.0f);
         turn(45.0f);
         setZoom(1.0f);
+
+        fov = 80.0f;
     }
 
     final void update(float time)
@@ -330,5 +336,27 @@ struct FreeviewComponent
     {
         if (active)
             zoom(cast(float) offset.y * 0.2f);
+    }
+
+    final void onGUI()
+    {
+        import imgui;
+        import std.conv : to;
+        import std.string : toStringz;
+
+        ImGui.Text("Camera stuff");
+        ImGui.DragFloat("Distance", &distance, 0.5, 0, 20); 
+        ImGui.DragFloat("Mouse sensitivity", &mouseSensibility, 0.001, -0.2, 0.2); 
+        ImGui.DragFloat("Speed", &speed, 0.001, -0.1, 0.1); 
+        ImGui.DragFloat("FOV", &fov, 1, 0, 100);
+        ImGui.Text(("Camera position: " ~ position.to!string()).toStringz());
+        ImGui.Separator();
+    }
+
+    final auto projection()
+    {
+        import shaderplayground.initialization : g_CurrentWindowDimensions;
+        auto ratio = g_CurrentWindowDimensions.ratio;
+        return perspectiveMatrix(fov, ratio, 0.1f, 100.0f);
     }
 }
