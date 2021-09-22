@@ -4,19 +4,23 @@ void main(string[] args)
 {
 
     import shaderplayground.initialization : initialize, shutdown;
-    import shaderplayground.app : App;
+
+    // TODO: Load from dll. Should be pretty easy too.
+    import app : App;
 
     initialize();
-    run(new App());
+    run([new App()]);
     shutdown();
 }
 
-void run(TApp)(TApp app)
+import shaderplayground.app : IApp;
+
+void run(IApp[] apps)
 {
     import shaderplayground;
     import std.exception : enforce;
     
-    app.setup();
+    foreach (a; apps)  a.setup();
 
     double time = glfwGetTime();
 
@@ -34,7 +38,7 @@ void run(TApp)(TApp app)
         if (ImGui.Begin("Main Window"))
         {
             ImGui.Text("User-defined uniforms");
-            doImgui(&app.uniforms);
+            foreach (a; apps)  a.doImgui();
             ImGui.Separator();
 
             g_Camera.onGUI();
@@ -48,7 +52,7 @@ void run(TApp)(TApp app)
         glClear(GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
-        app.loop(dt);
+        foreach (a; apps)  a.loop(dt);
 
 		ImguiImpl.RenderDrawData(ImGui.GetDrawData());
 

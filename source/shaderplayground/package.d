@@ -7,6 +7,8 @@ import shaderplayground.d_to_shader;
 import shaderplayground.initialization;
 import shaderplayground.freeview;
 import shaderplayground.model;
+import shaderplayground.object;
+import shaderplayground.app;
 import std.conv;
 import imgui;
 import bindbc.opengl;

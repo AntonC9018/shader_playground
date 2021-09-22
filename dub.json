@@ -6,7 +6,7 @@
 		"bindbc-glfw": "~>1.0.0",
 		"bindbc-opengl": "~>1.0.0"
 	},
-	"license": "proprietary",
+	"license": "MIT",
 	"name": "shaders_test",
 	"targetPath": "bin",
 	"workingDirectory": "bin",

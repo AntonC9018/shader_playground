@@ -72,7 +72,7 @@ private void doEdit(T)(string name, T* memory)
     }
     else static if (is(T : Vector!(float, N), int N))
     {
-        mixin(`ImGui.InputFloat` ~ N.to!string())(name.toStringz, cast(float*) memory);
+        mixin(`ImGui.SliderFloat` ~ N.to!string())(name.toStringz, cast(float*) memory, -5, 5);
     }
     else static if (is(T : Vector!(int, N), int N))
     {
@@ -128,7 +128,7 @@ struct IndexBuffer
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
     }
 
-    bool validateData(ivec3[] indices, size_t vertexCount)
+    bool validateData(const ivec3[] indices, size_t vertexCount)
     {
         foreach (tri; indices)
         {
@@ -139,7 +139,7 @@ struct IndexBuffer
         return true;
     }
 
-    void setData(ivec3[] indices)
+    void setData(const ivec3[] indices)
     {
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.length * ivec3.sizeof, indices.ptr, GL_STATIC_DRAW);
     }
@@ -199,7 +199,7 @@ struct VertexBuffer(TAttribute)
         glBindBuffer(GL_ARRAY_BUFFER, id);
     }
 
-    void setData(TAttribute[] vertices)
+    void setData(const TAttribute[] vertices)
     {
         glBufferData(GL_ARRAY_BUFFER, vertices.length * TAttribute.sizeof, vertices.ptr, GL_STATIC_DRAW);
     }
@@ -237,7 +237,7 @@ void doImgui(TUniforms)(TUniforms* uniforms)
     }}
 }
 
-class ShaderProgram(TUniforms)
+struct ShaderProgram(TUniforms)
 {
     import std.range;
     import std.algorithm;
@@ -247,8 +247,6 @@ class ShaderProgram(TUniforms)
     uint id;
     uint vertexShaderId;
     uint fragmentShaderId;
-
-    this() {}
 
     void setUniforms(TUniforms* uniforms)
     {
@@ -288,7 +286,7 @@ class ShaderProgram(TUniforms)
     }
 }
 
-void setupVertexBuffer(TAttribute)(ref VertexBuffer!TAttribute buffer, uint programId, TAttribute[] data)
+void setupVertexBuffer(TAttribute)(ref VertexBuffer!TAttribute buffer, uint programId, const TAttribute[] data)
 {
     buffer.create();
     buffer.bind();
@@ -296,7 +294,7 @@ void setupVertexBuffer(TAttribute)(ref VertexBuffer!TAttribute buffer, uint prog
     buffer.setData(data);
 }
 
-void setupIndexBuffer(ref IndexBuffer buffer, ivec3[] data)
+void setupIndexBuffer(ref IndexBuffer buffer, const ivec3[] data)
 {
     buffer.create();
     buffer.bind();

@@ -7,8 +7,8 @@ import bindbc.opengl;
 
 struct ModelData(TAttribute)
 {
-    TAttribute[] vertexData;
-    ivec3[] indexData;
+    const (TAttribute)[] vertexData;
+    const (ivec3)[] indexData;
 }
 
 // void setCameraUniforms(TUniforms)(TUniforms* uniforms)
@@ -42,13 +42,16 @@ void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 
 struct Model(TAttribute, TUniforms)
 {
-    ShaderProgram!TUniforms program;
-    VertexBuffer!TAttribute vertexBuffer;
-    mat4 localTransform; 
-    IndexBuffer indexBuffer;
+    ShaderProgram!TUniforms* program;
     ModelData!TAttribute modelData;
 
-    this(ShaderProgram!TUniforms program, ModelData!TAttribute modelData)
+    VertexBuffer!TAttribute vertexBuffer;
+    IndexBuffer indexBuffer;
+    
+    mat4 localTransform; 
+    uint vaoId;
+
+    this(ShaderProgram!TUniforms* program, ModelData!TAttribute modelData)
     {
         assert(program.id != 0, "The program must be initialized at this point");
         this.program = program;
@@ -60,19 +63,24 @@ struct Model(TAttribute, TUniforms)
     void initializeBuffers()
     {
         import shaderplayground;
-        import std;
+        import std.exception;
+
+        // This is a very important step.
+        // Without this thing they vertices stomp over each other.
+        glGenVertexArrays(1, &vaoId);
+        glBindVertexArray(vaoId);
 
         setupVertexBuffer(vertexBuffer, program.id, modelData.vertexData);
         enforce(indexBuffer.validateData(modelData.indexData, modelData.vertexData.length));
         setupIndexBuffer(indexBuffer, modelData.indexData);
     }
 
-    void draw(TUniforms* uniforms)
+    void draw(TUniforms* uniforms, mat4 transform = mat4.identity)
     {
+        glBindVertexArray(vaoId);
         program.use();
-        vertexBuffer.bind();
-        indexBuffer.bind();
-        setModelRelatedUniforms(localTransform, uniforms);
+
+        setModelRelatedUniforms(transform * localTransform, uniforms);
         program.setUniforms(uniforms);
 
         glDrawElements(GL_TRIANGLES, cast(int) modelData.indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
@@ -83,7 +91,7 @@ struct Model(TAttribute, TUniforms)
 
 template createModel(TAttribute, TUniforms)
 {
-    auto createModel(ShaderProgram!TUniforms program, ModelData!TAttribute modelData)
+    auto createModel(ShaderProgram!TUniforms* program, ModelData!TAttribute modelData)
     {
         return Model!(TAttribute, TUniforms)(program, modelData);
     }
@@ -257,5 +265,102 @@ auto makeSphere(TAttribute)(uint recursionCount)
         }
 
         return ModelData!TAttribute(vertexData, geometry.indices);
+    }
+}
+
+
+
+
+template makePrism(TAttribute)
+{
+    struct DataResult
+    {
+        TAttribute[6 * 4] vertices;
+        uint[6 * 6] indices;
+    }
+
+    alias v3 = vec3;
+
+    DataResult _getVerticesAndIndices()
+    {
+        DataResult result;
+
+        v3[8] positions = [
+            // bottom square
+            v3(0, 0, 0),
+            v3(0, 1, 0),
+            v3(1, 1, 0),
+            v3(1, 0, 0),
+
+            // top square
+            v3(0, 0, 1),
+            v3(0, 1, 1),
+            v3(1, 1, 1),
+            v3(1, 0, 1),
+        ];
+
+        v3[6] normals = [
+            // bottom
+            v3(0, 0, -1),
+            // left
+            v3(-1, 0, 0),
+            // front
+            v3(0, -1, 0),
+            // right
+            v3(1, 0, 0),
+            // back
+            v3(0, 1, 0),
+            // top
+            v3(0, 0, 1),
+        ];
+
+        uint[] indexSetsPerSide = [
+            // bottom
+            1, 0, 3, 2,
+            // left
+            1, 5, 4, 0,
+            // front
+            0, 4, 7, 3,
+            // right
+            3, 7, 6, 2,
+            // back
+            2, 6, 5, 1,
+            // top
+            4, 5, 6, 7,
+        ];
+
+        size_t currentTriIndex = 0;
+        size_t vertexIndex = 0;
+        foreach (sideIndex; 0..6)
+        {
+            auto indexSetIndex = sideIndex * 4;
+            auto normal = normals[sideIndex];
+
+            import std.range;
+            foreach (triIndex; [0, 1, 2, 0, 2, 3].retro)
+                result.indices[currentTriIndex++] = cast(uint) vertexIndex + triIndex;
+
+            foreach (triVertexIndex; indexSetsPerSide[indexSetIndex..indexSetIndex + 4])
+            {
+                if (__traits(hasMember, TAttribute, "aNormal"))
+                    result.vertices[vertexIndex].aNormal = normal;
+                result.vertices[vertexIndex].aPosition = positions[triVertexIndex];
+                vertexIndex++;
+            }
+        }
+
+        return result;
+    }
+    
+    static immutable verticesAndIndices = _getVerticesAndIndices();
+    static immutable vertices = verticesAndIndices.vertices;
+    static immutable indices = verticesAndIndices.indices;
+
+    auto makePrism()
+    {
+        import std.stdio;
+        writeln(vertices);
+        writeln(cast(ivec3[])indices);
+        return ModelData!TAttribute(vertices[], cast(ivec3[]) indices[]);
     }
 }

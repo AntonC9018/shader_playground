@@ -69,7 +69,7 @@ version(Windows) pragma(mangle, "?SliderFloat2@ImGui@@YA_NPEBDQEAMMM0M@Z") //boo
   bool SliderFloat2(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f); else
 bool SliderFloat2(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f);
 
-version(Windows) pragma(mangle, "?SliderFloat3@ImGui@@YA_NPEBDQEAMMM0M@Z") //bool __cdecl ImGui::SliderFloat3(char const *,float * const,float,float,char const *,float) 
+version(Windows) pragma(mangle, "?SliderFloat3@ImGui@@YA_NPEBDQEAMMM0H@Z") //bool __cdecl ImGui::SliderFloat3(char const *,float * const,float,float,char const *,float) 
   bool SliderFloat3(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f); else
 bool SliderFloat3(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f);
 
