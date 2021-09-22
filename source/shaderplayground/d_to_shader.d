@@ -250,10 +250,20 @@ struct ShaderProgram(TUniforms)
 
     void setUniforms(TUniforms* uniforms)
     {
+        uint textureUnitIndex = 0;
         static foreach (field; TUniforms.tupleof)
         {{
             enum string name = __traits(identifier, field);
-            __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field));
+
+            static if (is(typeof(field) == Texture2D))
+            {
+                __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field), textureUnitIndex);
+                textureUnitIndex++;
+            }
+            else
+            {
+                __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field));
+            }
         }}
     }
 

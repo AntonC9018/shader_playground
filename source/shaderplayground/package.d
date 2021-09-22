@@ -15,3 +15,19 @@ import bindbc.opengl;
 import bindbc.glfw;
 import std.string;
 import dlib.math; 
+import arsd.png;
+
+import shaderplayground.d_to_shader : Color;
+
+// Currently the wd is in bin, and the assets are next to bin
+// This function serves for easier future abstraction
+string getAssetPath(string path)
+{
+    return "../assets/" ~ path;
+}
+
+// TODO: this should not exist
+string getAssetsPath()
+{
+    return "../assets";
+}

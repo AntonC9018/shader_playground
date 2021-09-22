@@ -2,35 +2,43 @@
 	"authors": [
 		"Anton"
 	],
+	
+	"license": "MIT",
+	"name": "shaders_test",
+	"targetPath": "bin",
+	"targetType": "executable",
+	"versions": [
+		"GLFW_33",
+		"GL_46"
+	],
+	"workingDirectory": "bin",
 	"dependencies": {
 		"bindbc-glfw": "~>1.0.0",
 		"bindbc-opengl": "~>1.0.0"
 	},
-	"license": "MIT",
-	"name": "shaders_test",
-	"targetPath": "bin",
-	"workingDirectory": "bin",
-	"versions": ["GLFW_33", "GL_46"],
-	"libs": ["lib/imgui"],
 	"lflags-windows": [
 		"/LIBPATH:bin",
 		"/NODEFAULTLIB:libcmt",
 		"/NODEFAULTLIB:libvcruntime",
 		"/NODEFAULTLIB:libucrt"
 	],
-	"targetType": "executable",
+	"libs": [
+		"lib/imgui"
+	],
 	"configurations": [
 		{
-			"name": "default"
+			"name": "default",
+			"targetType": "executable"
 		},
 		{
-			"name": "ast",
 			"dflags": [
 				"-vcg-ast"
 			],
+			"name": "ast",
 			"postBuildCommands": [
 				"rdmd move_vcg.d"
-			]
+			],
+			"targetType": "executable"
 		}
 	]
 }

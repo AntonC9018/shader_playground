@@ -40,6 +40,7 @@ void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 }
 
 
+
 struct Model(TAttribute, TUniforms)
 {
     ShaderProgram!TUniforms* program;
@@ -106,6 +107,16 @@ template makeSquare(TAttribute)
         result[1].aPosition = vec3(0, 1, 0);
         result[2].aPosition = vec3(1, 1, 0);
         result[3].aPosition = vec3(1, 0, 0);
+
+        foreach (ref v; result[])
+        {
+            static if (__traits(hasMember, TAttribute, "aNormal"))
+                v.aNormal = vec3(0, 0, 1);
+
+            static if (__traits(hasMember, TAttribute, "aTexCoord"))
+                v.aTexCoord = vec2(v.aPosition);
+        }
+
         return result;
     }
     
@@ -262,6 +273,9 @@ auto makeSphere(TAttribute)(uint recursionCount)
 
             static if (__traits(hasMember, vertexData[i], "aNormal"))
                 vertexData[i].aNormal = position.normalized;
+
+            static if (__traits(hasMember, vertexData[i], "aTexCoord"))
+                vertexData[i].aTexCoord = (vec2(position.normalized) + 1) / 2;
         }
 
         return ModelData!TAttribute(vertexData, geometry.indices);
@@ -340,12 +354,18 @@ template makePrism(TAttribute)
             foreach (triIndex; [0, 1, 2, 0, 2, 3].retro)
                 result.indices[currentTriIndex++] = cast(uint) vertexIndex + triIndex;
 
+            size_t vertexIndexInCurrentQuad = 0;
             foreach (triVertexIndex; indexSetsPerSide[indexSetIndex..indexSetIndex + 4])
             {
-                if (__traits(hasMember, TAttribute, "aNormal"))
+                static if (__traits(hasMember, TAttribute, "aNormal"))
                     result.vertices[vertexIndex].aNormal = normal;
+
+                static if (__traits(hasMember, TAttribute, "aTexCoord"))
+                    result.vertices[vertexIndex].aTexCoord = vec2(positions[vertexIndexInCurrentQuad]);
+
                 result.vertices[vertexIndex].aPosition = positions[triVertexIndex];
                 vertexIndex++;
+                vertexIndexInCurrentQuad++;
             }
         }
 

@@ -28,7 +28,8 @@ void run(IApp[] apps)
     while (!glfwWindowShouldClose(g_Window))
     {
         glfwPollEvents();
-        
+        glViewport(0, 0, g_CurrentWindowDimensions.width, g_CurrentWindowDimensions.height);
+
         double dt = glfwGetTime() - time;
         time = glfwGetTime();
 

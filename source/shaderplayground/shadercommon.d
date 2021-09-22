@@ -49,6 +49,41 @@ void errors(ref Logger logger)
     }
 }
 
+struct Texture2D
+{
+    uint id;
+
+    void create()
+    {
+        glGenTextures(1, &id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    void bind()
+    {
+        glBindTexture(GL_TEXTURE_2D, id);
+    }
+
+    import arsd.png;
+    void setData(const TrueColorImage image)
+    { 
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.imageData.bytes.ptr);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    static Texture2D make(const TrueColorImage image)
+    {
+        Texture2D result;
+        result.create();
+        result.bind();
+        result.setData(image);
+        return result;
+    }
+}
+
 struct Uniform(T)
 {
     string name; 
@@ -72,12 +107,23 @@ struct Uniform(T)
             static assert(0);
     }
     
+    import arsd.png;
+    
     static if (is(T == float) || is(T == int) || is(T == uint)) 
     {
         void set(T value)
         {
             mixin(`glUniform1` ~ TypeSuffix!(T) ~ `(location, value);`);
             errors("Uniform " ~ name);
+        }
+    }
+    else static if (is(T == Texture2D))
+    {
+        void set(Texture2D tex, uint textureUnit)
+        {
+            glActiveTexture(cast(GLenum) (GL_TEXTURE0 + textureUnit));
+            tex.bind();
+            glUniform1i(location, textureUnit);
         }
     }
     else
