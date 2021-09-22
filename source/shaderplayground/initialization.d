@@ -132,6 +132,7 @@ void initialize()
     {
         g_CurrentWindowDimensions.width = width;
         g_CurrentWindowDimensions.height = width;
+        // FIXME: Doesn't work without SetContextCurrent
         glViewport(0, 0, width, height);
     }
     glfwSetWindowSizeCallback(window, &resetScreenDimensions);

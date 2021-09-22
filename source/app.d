@@ -27,6 +27,9 @@ struct TestAttribute
     vec2 aTexCoord;
 }
 
+alias Model_t = Model!(TestAttribute, TestUniforms);
+alias Object_t = shaderplayground.object.Object!(TestAttribute, TestUniforms);
+
 immutable string vertexShaderText = SHADER_HEADER 
     ~ VertexAttributeShaderDeclarations!TestAttribute ~ q{
     uniform mat4 uModelViewProjection;
@@ -73,12 +76,18 @@ immutable string fragmentShaderText = SHADER_HEADER ~ q{
 };
 
 
+
 class App : IApp
 {
+    import shaderplayground.object;
     TestUniforms uniforms;
     ShaderProgram!TestUniforms program;
-    Model!(TestAttribute, TestUniforms) sphere;
-    Model!(TestAttribute, TestUniforms) prism;
+    
+    Model_t sphereModel;
+    Model_t prismModel;
+    Object_t sphere;
+    Object_t prism;
+
     TextureManager textureManager;
 
     void setup()
@@ -88,10 +97,12 @@ class App : IApp
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
         enum recursionCount = 3;
-        sphere = createModel(&program, makeSphere!TestAttribute(recursionCount));
-        sphere.localTransform = translationMatrix(vec3(1, 1, 2));
-     
-        prism = createModel(&program, makePrism!TestAttribute());
+        sphereModel = Model_t(&program, makeSphere!TestAttribute(recursionCount));
+        prismModel = Model_t(&program, makePrism!TestAttribute());
+        
+        sphere = Object_t(&sphereModel, translationMatrix(vec3(1, 1, 2)));
+        prism = Object_t(&prismModel);
+
         textureManager.setup();
         uniforms.uTexture = textureManager.currentTexture.texture;
     }

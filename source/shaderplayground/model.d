@@ -76,7 +76,7 @@ struct Model(TAttribute, TUniforms)
         setupIndexBuffer(indexBuffer, modelData.indexData);
     }
 
-    void draw(TUniforms* uniforms, mat4 transform = mat4.identity)
+    void draw(TUniforms* uniforms, auto ref mat4 transform = mat4.identity)
     {
         glBindVertexArray(vaoId);
         program.use();
