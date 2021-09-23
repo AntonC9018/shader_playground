@@ -6,10 +6,10 @@ void main(string[] args)
     import shaderplayground.initialization : initialize, shutdown;
 
     // TODO: Load from dll. Should be pretty easy too.
-    import app : App;
+    import text : TextApp;
 
     initialize();
-    run([new App()]);
+    run([new TextApp()]);
     shutdown();
 }
 

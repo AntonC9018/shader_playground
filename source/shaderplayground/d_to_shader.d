@@ -154,16 +154,25 @@ struct VertexBuffer(TAttribute)
 
     void setup(uint programId)
     {
-        template GlType(T)
+        // template GlType(T)
+        // {
+        //     static if (is(T == int))
+        //         enum GlType = GL_INT;
+        //     else static if (is(T == float))
+        //         enum GlType = GL_FLOAT;
+        //     // else static if (is(T == bool))
+        //     //     enum GlType = GL_BOOL;
+        //     else static assert(0);
+        // } 
+
+        void GlVertexAttribPointer(T)(uint location, int n, int size, size_t offset)
         {
             static if (is(T == int))
-                enum GlType = GL_INT;
+                glVertexAttribIPointer(location, n, GL_INT, size, cast(void*) offset);
             else static if (is(T == float))
-                enum GlType = GL_FLOAT;
-            else static if (is(T == bool))
-                enum GlType = GL_BOOl;
+                glVertexAttribPointer(location, n, GL_FLOAT, GL_FALSE, size, cast(void*) offset);
             else static assert(0);
-        } 
+        }
 
         uint location;
         static foreach (field; TAttribute.tupleof)
@@ -175,11 +184,11 @@ struct VertexBuffer(TAttribute)
             
             static if (__traits(compiles, GlType!F)) // int, float or bool
             {
-                glVertexAttribPointer(location, 1, GlType!F, GL_FALSE, TAttribute.sizeof, cast(void*) field.offsetof);
+                GlVertexAttribPointer!F(location, 1, TAttribute.sizeof, field.offsetof);
             }
             else static if (is(F : Vector!(T, N), T, int N))
             {
-                glVertexAttribPointer(location, N, GlType!T, GL_FALSE, TAttribute.sizeof, cast(void*) field.offsetof);
+                GlVertexAttribPointer!T(location, N, TAttribute.sizeof, field.offsetof);
             }
             else 
             {
@@ -199,9 +208,9 @@ struct VertexBuffer(TAttribute)
         glBindBuffer(GL_ARRAY_BUFFER, id);
     }
 
-    void setData(const TAttribute[] vertices)
+    void setData(const TAttribute[] vertices, uint mode = GL_STATIC_DRAW)
     {
-        glBufferData(GL_ARRAY_BUFFER, vertices.length * TAttribute.sizeof, vertices.ptr, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertices.length * TAttribute.sizeof, vertices.ptr, mode);
     }
 }
 
