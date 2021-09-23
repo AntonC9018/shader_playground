@@ -6,7 +6,7 @@ struct TestUniforms
     @Color             vec3 uColor = vec3(1, 1, 1);
     @Range(0, 1)       float uAmbient = 0.2;
     @Range(0, 1)       float uDiffuse = 0.5;
-    @Edit              vec3 uLightPosition = vec3(5, 1, 1);
+    @Edit              vec3 uLightPosition = vec3(0, 5, 1);
     
     /// These ones here are built in.
     mat4 uModelViewProjection;
@@ -76,7 +76,6 @@ immutable string fragmentShaderText = SHADER_HEADER ~ q{
 };
 
 
-
 class App : IApp
 {
     import shaderplayground.object;
@@ -87,6 +86,7 @@ class App : IApp
     Model_t prismModel;
     Object_t sphere;
     Object_t prism;
+    TextObject text;
 
     TextureManager textureManager;
 
@@ -103,6 +103,9 @@ class App : IApp
         sphere = Object_t(&sphereModel, translationMatrix(vec3(1, 1, 2)));
         prism = Object_t(&prismModel);
 
+        text = TextObject("Hello World!");
+        text.transform = translationMatrix(vec3(2, 0, 0));
+
         textureManager.setup();
         uniforms.uTexture = textureManager.currentTexture.texture;
     }
@@ -114,6 +117,8 @@ class App : IApp
 
         sphere.draw(&uniforms);
         prism.draw(&uniforms);
+
+        text.draw();
     }
 
     void doImgui()

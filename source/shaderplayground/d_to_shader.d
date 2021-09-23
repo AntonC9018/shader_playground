@@ -139,9 +139,9 @@ struct IndexBuffer
         return true;
     }
 
-    void setData(const ivec3[] indices)
+    void setData(const ivec3[] indices, uint mode = GL_STATIC_DRAW)
     {
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.length * ivec3.sizeof, indices.ptr, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.length * ivec3.sizeof, indices.ptr, mode);
     }
 }
 

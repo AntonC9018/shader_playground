@@ -6,10 +6,10 @@ void main(string[] args)
     import shaderplayground.initialization : initialize, shutdown;
 
     // TODO: Load from dll. Should be pretty easy too.
-    import text : TextApp;
+    import app : App;
 
     initialize();
-    run([new TextApp()]);
+    run([new App()]);
     shutdown();
 }
 
@@ -21,6 +21,7 @@ void run(IApp[] apps)
     import std.exception : enforce;
     
     foreach (a; apps)  a.setup();
+    g_TextDrawer.setup();
 
     double time = glfwGetTime();
 

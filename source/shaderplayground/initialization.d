@@ -1,6 +1,9 @@
 module shaderplayground.initialization;
+
 import shaderplayground.logger;
 import shaderplayground.freeview;
+import shaderplayground.text;
+
 import bindbc.glfw;
 import bindbc.opengl;
 import imgui;
@@ -10,6 +13,7 @@ import dlib.math;
 
 __gshared GLFWwindow* g_Window;
 __gshared FreeviewComponent g_Camera;
+__gshared TextDrawer g_TextDrawer;
 
 struct ScreenDimensions
 {
@@ -59,8 +63,8 @@ void initialize()
 
 
     auto vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    int width = vidMode.width; 
-    int height = vidMode.height;
+    int width = vidMode.width - 200; 
+    int height = vidMode.height - 200;
     // width = min(width, vidMode.width);
     // height = min(height, vidMode.height);
 

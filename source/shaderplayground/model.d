@@ -379,8 +379,6 @@ template makePrism(TAttribute)
     auto makePrism()
     {
         import std.stdio;
-        writeln(vertices);
-        writeln(cast(ivec3[])indices);
         return ModelData!TAttribute(vertices[], cast(ivec3[]) indices[]);
     }
 }

@@ -9,6 +9,7 @@ import shaderplayground.freeview;
 import shaderplayground.model;
 import shaderplayground.object;
 import shaderplayground.app;
+import shaderplayground.text;
 import std.conv;
 import imgui;
 import bindbc.opengl;
