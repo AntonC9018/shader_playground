@@ -75,8 +75,12 @@ struct FontBitmapMetadata
         int charIndexOffset = cast(int) (ch - firstCharacter);
         int rowIndex = charIndexOffset / charactersPerRow;
         int colIndex = charIndexOffset - rowIndex * charactersPerRow;
-        assert(rowIndex >= 0 && rowIndex < charactersPerColumn && colIndex >= 0 && colIndex < charactersPerRow,
-            "Only ascii characters starting from space are allowed");
+        if (!(rowIndex >= 0 && rowIndex < charactersPerColumn && colIndex >= 0 && colIndex < charactersPerRow))
+        {
+            g_Logger.log("Only ascii characters starting from space are allowed");
+            rowIndex = 0;
+            colIndex = 0;
+        }
         return ivec2(colIndex, rowIndex);
     }
 
@@ -265,6 +269,16 @@ struct TextDrawer
                 v.aPosition.y += fontBitmapMetadata.heightToWidthRatio;
             }
         }
+    }
+
+    float getWidth(string str)
+    {
+        return str.length;
+    }
+
+    float getHeight(string str = "")
+    {
+        return fontBitmapMetadata.heightToWidthRatio;
     }
 }
 

@@ -131,9 +131,11 @@ class App : IApp
 
 struct TextureManager
 {
+    import shaderplayground.string;
+
     static struct TextureThing 
     {
-        string _name;
+        NullTerminatedString name;
         TrueColorImage image;
         Texture2D texture;
 
@@ -142,26 +144,10 @@ struct TextureManager
             import std.path;
 
             TextureThing t = void;
-            string name = baseName(pngPath);
             t.image   = cast(TrueColorImage) readPng(pngPath);
             t.texture = Texture2D.make(t.image);
-            t._name   = name ~ '\0';
+            t.name    = baseName(pngPath);
             return t;
-        }
-
-        string name() const
-        {
-            return _name[0..$-1];
-        }
-    
-        const (char)* nullTerminatedName() const
-        {
-            return name.ptr;   
-        }
-
-        auto opCmp(TextureThing t) const
-        {
-            return t._name > _name;
         }
     }
 
@@ -182,12 +168,12 @@ struct TextureManager
 
     void doImgui(void delegate(TextureThing*) onChanged)
     {
-        if (ImGui.BeginCombo("Texture", currentTexture.nullTerminatedName))
+        if (ImGui.BeginCombo("Texture", currentTexture.name.nullTerminated))
         {
             foreach (ref t; textures.values)
             {
                 bool isSelected = (currentTexture == &t);
-                if (ImGui.Selectable(t.nullTerminatedName, isSelected))
+                if (ImGui.Selectable(t.name.nullTerminated, isSelected))
                 {
                     currentTexture = &t;
                     onChanged(currentTexture);
