@@ -112,7 +112,7 @@ struct Uniform(T)
     
     static if (is(T == float) || is(T == int) || is(T == uint)) 
     {
-        void set(T value)
+        void set(auto ref T value = T.init)
         {
             mixin(`glUniform1` ~ TypeSuffix!(T) ~ `(location, value);`);
             errors("Uniform " ~ name);
@@ -129,7 +129,7 @@ struct Uniform(T)
     }
     else
     {
-        void set(const ref T value)
+        void set(auto ref T value = T.init)
         {
             if (location == -1) return;
             import std.conv : to;

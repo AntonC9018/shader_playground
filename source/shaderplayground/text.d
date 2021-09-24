@@ -11,6 +11,10 @@ struct TextAttribute
 struct TextUniforms
 {
     Texture2D uTexture;
+    // TODO: add a `manual` attribute
+    enum Manual;
+    @Manual vec2 uTexCoord;
+    @Manual vec2 uOffset;
     mat4 uModelViewProjection;
 }
 
@@ -19,11 +23,13 @@ private immutable string vertexShaderText = SHADER_HEADER
     
     out vec2 vTexCoord;
     uniform mat4 uModelViewProjection;
+    uniform vec2 uTexCoord;
+    uniform vec2 uOffset;
 
     void main()
     {
-        gl_Position = uModelViewProjection * vec4(aPosition, 0.0, 1.0);
-        vTexCoord = vec2(aTexCoord);
+        gl_Position = uModelViewProjection * vec4(aPosition + uOffset, 0.0, 1.0);
+        vTexCoord = vec2(aTexCoord) + uTexCoord;
     }
 };
 
@@ -95,18 +101,23 @@ struct FontBitmapMetadata
         return getTexCoordsFromTableCoords(getCharTableCoords(ch));
     }
 
-    void fillTexCoordsForCharacter(TAttribute)(ref TAttribute[4] attributes, char ch)
+    enum characterWidth = 1;
+
+    void fillAttributes(ref TextAttribute[4] attributes)
     {
-        auto coords = getCharTexCoords(ch);
-        attributes[0].aTexCoord = coords + vec2(0, oneCharacterInTexCoords.y); 
-        attributes[1].aTexCoord = coords; 
-        attributes[2].aTexCoord = coords + vec2(oneCharacterInTexCoords.x, 0); 
-        attributes[3].aTexCoord = coords + oneCharacterInTexCoords;
+        attributes[0].aTexCoord = vec2(0, oneCharacterInTexCoords.y); 
+        attributes[1].aTexCoord = vec2(0, 0); 
+        attributes[2].aTexCoord = vec2(oneCharacterInTexCoords.x, 0); 
+        attributes[3].aTexCoord = oneCharacterInTexCoords;
+        
+        attributes[0].aPosition = vec2(0, 0);
+        attributes[1].aPosition = vec2(0, 0 + characterWidth * heightToWidthRatio);
+        attributes[2].aPosition = vec2(0 + characterWidth, 0 + characterWidth * heightToWidthRatio);
+        attributes[3].aPosition = vec2(0 + characterWidth, 0);
     }
 
-    void fillPositions(TAttribute)(ref TAttribute[4] attributes, TextAlignment alignment = TextAlignment.Left|TextAlignment.Bottom, int lineWidth = 1, int lineCount = 1)
+    vec2 getInitialOffset(TextAlignment alignment = TextAlignment.Left|TextAlignment.Bottom, int lineWidth = 1, int lineCount = 1)
     {
-        enum characterWidth = 1;
         float x = 0;
         float y = 0;
 
@@ -138,10 +149,7 @@ struct FontBitmapMetadata
             y = -lineHeight;
         }
 
-        attributes[0].aPosition = vec2(x, y);
-        attributes[1].aPosition = vec2(x, y + characterWidth * heightToWidthRatio);
-        attributes[2].aPosition = vec2(x + characterWidth, y + characterWidth * heightToWidthRatio);
-        attributes[3].aPosition = vec2(x + characterWidth, y);
+        return vec2(x, y);
     }
 }
 
@@ -177,10 +185,10 @@ struct TextDrawer
         
         glGenVertexArrays(1, &vaoId);
         glBindVertexArray(vaoId);
-        vbo.create();
-        vbo.bind();
-        vbo.setup(program.id); 
 
+        TextAttribute[4] vertices;
+        fontBitmapMetadata.fillAttributes(vertices);
+        setupVertexBuffer(vbo, program.id, vertices);
         setupIndexBuffer(ibo, [ivec3(1, 0, 2), ivec3(2, 0, 3)]);
     }
 
@@ -197,12 +205,9 @@ struct TextDrawer
     void drawLetter(char letter, TextAlignment alignment = TextAlignment.Left|TextAlignment.Bottom, 
         auto ref mat4 bottomLeftCornerModelTransform = mat4.identity)
     {
+        uniforms.uOffset = fontBitmapMetadata.getInitialOffset(alignment, 1, 1);
+        uniforms.uTexCoord = fontBitmapMetadata.getCharTexCoords(letter);
         startDraw(bottomLeftCornerModelTransform);
-        
-        TextAttribute[4] vertices;
-        fontBitmapMetadata.fillTexCoordsForCharacter(vertices, letter);
-        fontBitmapMetadata.fillPositions(vertices, alignment, 1, 1);
-        vbo.setData(vertices[], GL_DYNAMIC_DRAW);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
     }
 
@@ -210,21 +215,17 @@ struct TextDrawer
         auto ref mat4 bottomLeftCornerModelTransform = mat4.identity)
     {
         startDraw(bottomLeftCornerModelTransform);
+        auto offset = fontBitmapMetadata.getInitialOffset(alignment, cast(int) characters.length, 1);
 
         TextAttribute[4] vertices;
 
-        fontBitmapMetadata.fillPositions(vertices, alignment, cast(int) characters.length, 1);
-
         foreach (ch; characters)
         {
-            fontBitmapMetadata.fillTexCoordsForCharacter(vertices, ch);
-            vbo.setData(vertices[], GL_DYNAMIC_DRAW);
+            program.uniformInfos.uTexCoord.set(fontBitmapMetadata.getCharTexCoords(ch));
+            program.uniformInfos.uOffset.set(offset);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
             
-            foreach (ref v; vertices)
-            {
-                v.aPosition += vec2(1, 0);
-            }
+            offset.x += 1;
         }
     }
 
@@ -241,12 +242,8 @@ struct TextDrawer
         // TODO: proper wrapping
         int numLines = cast(int) characters.length / maxCharactersPerLine;
 
-        TextAttribute[4] vertices;
-        fontBitmapMetadata.fillPositions(vertices, alignment, maxCharactersPerLine, numLines);
-        
-        float[4] initialX;
-        foreach (i, ref x; initialX)
-            x = vertices[i].aPosition.x;
+        auto offset = fontBitmapMetadata.getInitialOffset(alignment, cast(int) characters.length, 1);
+        float initialX = offset.x;
 
         size_t currentIndex = 0;
         foreach (lineNumber; 0..numLines)
@@ -254,20 +251,14 @@ struct TextDrawer
             auto t = currentIndex + maxCharactersPerLine;
             foreach (ch; characters[currentIndex..(t > $ ? $ : t)])
             {
-                fontBitmapMetadata.fillTexCoordsForCharacter(vertices, ch);
-                vbo.setData(vertices[], GL_DYNAMIC_DRAW);
+                program.uniformInfos.uTexCoord.set(fontBitmapMetadata.getCharTexCoords(ch));
+                program.uniformInfos.uOffset.set(offset);
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
 
-                foreach (ref v; vertices)
-                {
-                    v.aPosition.x += 1;
-                }
+                offset.x += 1;
             }
-            foreach (i, ref v; vertices)
-            {
-                v.aPosition.x = initialX[i];
-                v.aPosition.y += fontBitmapMetadata.heightToWidthRatio;
-            }
+            offset.x = initialX;
+            offset.y += fontBitmapMetadata.heightToWidthRatio;
         }
     }
 
