@@ -40,6 +40,80 @@ double toFloatZero(string str)
     return to!double(str);
 }
 
+auto splitEntries(string str)
+{
+    struct Splitter
+    {
+        string _source;
+        string front;
+        bool empty;
+
+        this(string source)
+        {
+            _source = source;
+            popFront();
+        }
+        
+        void popFront()
+        {
+            if (_source.empty)
+                empty = true;
+            else
+                front = advanceFront();
+        }
+        
+        string advanceFront()
+        {
+            int endIndex = 0;
+            string copy = _source;
+
+            assert(!_source.empty);
+
+            if (_source.front == '"')
+            {
+                endIndex++;
+                _source.popFront();
+                // skip all non "
+                while (_source.front != '"')
+                {
+                    endIndex++;
+                    _source.popFront();
+                }
+                _source.popFront();
+
+                if (_source.empty)
+                {
+                    return copy[1..endIndex];
+                }
+                assert(_source.front == ',');
+                _source.popFront();
+                return copy[1..endIndex];
+            }
+            while (_source.front != ',')
+            {
+                endIndex++;
+                _source.popFront();
+                
+                if (_source.empty)
+                    return copy[0..endIndex];
+            }
+
+            assert(_source.front == ',');
+            _source.popFront();
+
+            return copy[0..endIndex];
+        }
+    }
+
+    return Splitter(str);
+}
+unittest
+{
+    import std.stdio;
+    auto things = splitEntries(`"","","Hello",k,"123",`).array;
+    assert(things[] == ["", "", "Hello", "k", "123"]);
+}
+
 Csv loadCsv(string csvPath)
 {
     import std.stdio;
@@ -50,44 +124,37 @@ Csv loadCsv(string csvPath)
     auto file = File(csvPath, "r");
     auto lines = file.byLine;
 
-    char[] convertEntry(char[] entry)
-    {
-        if (entry.length >= 2 && entry[0] == '"' && entry[$-1] == '"')
-            entry = entry[1..$-1];
-        return entry;
-    }
-
     Csv result;
     
     auto firstLine = lines.front;
     // Remove BOM
     if (firstLine.length > 3 && firstLine[0..3] == [0xEF,0xBB,0xBF])
         firstLine = firstLine[3..$];
-
-    foreach (i, header; firstLine.split(','))
+    
+    foreach (i, header; splitEntries(firstLine.idup).enumerate)
     {
-        result.header ~= NullTerminatedString(convertEntry(header));
+        result.header ~= NullTerminatedString(header);
     }
     result.data = new NullTerminatedString[][](result.header.length);
     lines.popFront();
     
-    auto otherLines = lines.map!(l => l.dup).array;
+    auto otherLines = lines.map!(l => l.idup).array;
     auto numLines = otherLines.length;
     foreach(ref v; result.data)
         v = new NullTerminatedString[](numLines);
     
     foreach (lineIndex, line; otherLines)
     {
-        auto elements = line.split(",");
+        auto elements = splitEntries(line);
         import std.exception;
         // if (elements.length > result.header.length) 
         //     g_Logger.log("One of the lines is longer than the header");
-        foreach (i, thing; elements)
+        foreach (i, thing; elements.enumerate)
         {
             // Wtf?
             if (i >= result.header.length)
                 break;
-            result.data[i][lineIndex] = convertEntry(thing);
+            result.data[i][lineIndex] = thing;
         }
     }
 

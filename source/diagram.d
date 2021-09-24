@@ -77,7 +77,41 @@ class App : IApp
     ShaderProgram!TestUniforms program;
     Model_t prismModel;
     Csv dataCsv;
-    Object_t[] pool;
+
+    int startIndex = 0;
+    int endIndex = 10;
+    size_t[] numericIndices;
+    float[] dataPoints;
+    float maxDataValue;
+    float minDataValue;
+
+    void renewData()
+    {
+        minDataValue =  float.infinity;
+        maxDataValue = -float.infinity;
+        foreach (i; 0..dataCsv.numRows)
+        {
+            if (dataCsv.data[selectedDataIndex][i] == "")
+            {
+                dataPoints[i] = float.nan;
+                continue;
+            }
+            dataPoints[i] = to!float(dataCsv.data[selectedDataIndex][i].get());
+            minDataValue = min(dataPoints[i], minDataValue);
+            maxDataValue = max(dataPoints[i], maxDataValue);
+        }
+    }
+
+    struct Params
+    {
+        @Range(0,   1)    float belowMinHeight  = 0.1;
+        @Range(0,   3)    float minHeight       = 1;
+        @Range(0.5, 10)   float maxHeight       = 5;
+        @Range(0,   1)    float width           = 0.2;
+        @Range(0,   0.2)  float spacing         = 0.01;
+
+    }    
+    Params params;
 
     void setup()
     {
@@ -86,57 +120,60 @@ class App : IApp
         prismModel = Model_t(&program, makePrism!TestAttribute());
 
         dataCsv = loadCsv(getAssetPath("income.csv"));
-        if (!dataCsv.getNumericIndices().empty)
+        import std.range;
+        numericIndices = dataCsv.getNumericIndices().array;
+        if (!numericIndices.empty)
         {
-            selectedDataIndex = dataCsv.getNumericIndices().front;
-            pool = new Object_t[](dataCsv.numColumns);
-
-            float[] values = new float[](dataCsv.numColumns);
-            float nonZeroMin;
-            float maximum;
-            foreach (i; 0..dataCsv.numColumns)
-            {
-                values[i] = toFloatZero(dataCsv.data[selectedDataIndex][i]);
-                if (values[i] != 0)
-                {
-                    import std.algorithm.comparison;
-                    nonZeroMin = min(values[i], nonZeroMin);
-                    maximum = max(values[i], maximum);
-                }
-            }
-
-            enum maxHeight = 5;
-            enum belowMinHeight = 0.1;
-            enum minHeight = 1;
-            float heightGap = maxHeight - minHeight;
-            float valueGap = maximum - nonZeroMin;
-            enum spacing = 0.01;
-            enum width = 0.2;
-
-            foreach (index, ref obj; pool)
-            {
-                auto value = values[index];
-                float height;
-                if (value < nonZeroMin)
-                    height = belowMinHeight;
-                else
-                    height = minHeight + (heightGap) * (value - nonZeroMin) / valueGap;
-                auto scale = scaleMatrix(vec3(width, height, width));
-                obj = Object_t(&prismModel, translationMatrix(vec3((spacing + width) * index, 0, 0)) * scale);
-            }
+            selectedDataIndex = numericIndices[0];
+            dataPoints = new float[](dataCsv.numRows);
+            renewData();
         }
+    }
 
+    void visualizeDataPoints()
+    {
+        float heightGap = params.maxHeight - params.minHeight;
+        float valueGap = maxDataValue - minDataValue;
+        float xShift = 0;
+
+        foreach (index; startIndex..endIndex+1)
+        {
+            float value = dataPoints[index];
+            float height;
+            import std.math.traits;
+            if (isNaN(value))
+            {
+                height = params.belowMinHeight;
+            }
+            else
+            {
+                height = params.minHeight + (heightGap) * (value - minDataValue) / valueGap;
+            }
+            auto scale = scaleMatrix(vec3(params.width, height, params.width));
+            auto transform = translationMatrix(vec3(xShift, 0, 0)) * scale;
+            prismModel.draw(&uniforms, transform);
+
+            {
+                import std.math : PI_2;
+                auto factor = params.width / g_TextDrawer.getHeight();
+                auto textScale = scaleMatrix(vec3(factor, factor, 1));
+                auto textRotation = rotationMatrix(Axis.z, -cast(float) PI_2);
+                auto textTranslation = translationMatrix(vec3(xShift, 0, params.width));
+                g_TextDrawer.drawLine(
+                    dataCsv.data[selectedLabelIndex][index], 
+                    TextAlignment.Right|TextAlignment.Top, 
+                    textTranslation * textRotation * textScale);
+            }
+
+            xShift += (params.spacing + params.width);
+        }
     }
 
     void loop(double dt)
     {
-        // glEnable(GL_CULL_FACE);
-        // glCullFace(GL_BACK);
-
-        foreach (ref obj; pool)
-        {
-            obj.draw(&uniforms);
-        }
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        visualizeDataPoints();
 
         void drawText(string text, vec3 translation)
         {
@@ -145,9 +182,9 @@ class App : IApp
 
         if (!dataCsv.getNumericIndices().empty)
         {
-            drawText("Numeric: " ~ dataCsv.header[selectedDataIndex], vec3(0, 0, 0));
+            drawText("Numeric: " ~ dataCsv.header[selectedDataIndex], vec3(-1, 0, 0));
         }
-        drawText("Label: " ~ dataCsv.header[selectedLabelIndex], vec3(0, g_TextDrawer.getHeight(), 0));
+        drawText("Label: " ~ dataCsv.header[selectedLabelIndex], vec3(-1, g_TextDrawer.getHeight(), 0));
     }
 
     size_t selectedLabelIndex = 0;
@@ -156,6 +193,7 @@ class App : IApp
     void doImgui()
     {
         .doImgui(&uniforms);
+        .doImgui(&params);
 
         if (ImGui.BeginCombo("Select label column", dataCsv.header[selectedLabelIndex].nullTerminated))
         {
@@ -177,11 +215,25 @@ class App : IApp
             {
                 bool isSelected = (index == selectedDataIndex);
                 if (ImGui.Selectable(dataCsv.header[index].nullTerminated, isSelected))
+                {
                     selectedDataIndex = index;
+                    renewData();
+                }
                 if (isSelected)
                     ImGui.SetItemDefaultFocus();
             }
             ImGui.EndCombo();
         }
+
+        ImGui.SliderInt("Starting index", &startIndex, 0, endIndex);
+        ImGui.SliderInt("Ending index", &endIndex, startIndex, cast(int) dataCsv.numRows - 1);
+        if (startIndex < 0) 
+            startIndex = 0;
+        if (endIndex >= dataCsv.numRows) 
+            endIndex = cast(int) dataCsv.numRows - 1;
+        if (startIndex > endIndex) 
+            startIndex = endIndex;
+        if (endIndex < startIndex)
+            endIndex = startIndex;
     }
 }

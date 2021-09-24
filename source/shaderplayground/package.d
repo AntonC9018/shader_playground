@@ -17,6 +17,8 @@ import bindbc.glfw;
 import std.string;
 import dlib.math; 
 import arsd.png;
+import std.algorithm.comparison : min, max;
+
 
 import shaderplayground.d_to_shader : Color;
 

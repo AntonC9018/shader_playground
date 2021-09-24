@@ -268,6 +268,7 @@ extern(C++, ImGui) nothrow {
     @pyExtract  pragma(mangle, gen.SliderFloat4.mangleof )
     bool          SliderFloat4(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f);
     bool          SliderAngle(const(char)* label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f);
+    pragma(mangle, "?SliderInt@ImGui@@YA_NPEBDPEAHHH0H@Z")
     bool          SliderInt(const(char)* label, int* v, int v_min, int v_max, const(char)* format = "%d");
     @pyExtract  pragma(mangle, gen.SliderInt2.mangleof )
     bool          SliderInt2(const(char)* label, int* /*const*/ v, int v_min, int v_max, const(char)* format = "%d");

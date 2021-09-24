@@ -31,6 +31,10 @@
 			"targetType": "executable"
 		},
 		{
+			"name": "unittest",
+			"targetName": "shaders_test-test-library"
+		},
+		{
 			"dflags": [
 				"-vcg-ast"
 			],
