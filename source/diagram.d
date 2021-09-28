@@ -77,28 +77,32 @@ class App : IApp
     ShaderProgram!TestUniforms program;
     Model_t prismModel;
     Csv dataCsv;
+    Csv colorsCsv;
 
     int startIndex = 0;
     int endIndex = 10;
     size_t[] numericIndices;
-    float[] dataPoints;
+    enum numberOfRows = 3;
+    float[][numberOfRows] dataPoints;
     float maxDataValue;
     float minDataValue;
 
-    void renewData()
+    vec3[] colors;
+
+    void renewDataForIndex(size_t index)
     {
         minDataValue =  float.infinity;
         maxDataValue = -float.infinity;
         foreach (i; 0..dataCsv.numRows)
         {
-            if (dataCsv.data[selectedDataIndex][i] == "")
+            if (dataCsv.data[selectedDataIndex[index]][i] == "")
             {
-                dataPoints[i] = float.nan;
+                dataPoints[index][i] = float.nan;
                 continue;
             }
-            dataPoints[i] = to!float(dataCsv.data[selectedDataIndex][i].get());
-            minDataValue = min(dataPoints[i], minDataValue);
-            maxDataValue = max(dataPoints[i], maxDataValue);
+            dataPoints[index][i] = to!float(dataCsv.data[selectedDataIndex[index]][i].get());
+            minDataValue = min(dataPoints[index][i], minDataValue);
+            maxDataValue = max(dataPoints[index][i], maxDataValue);
         }
     }
 
@@ -124,48 +128,67 @@ class App : IApp
         numericIndices = dataCsv.getNumericIndices().array;
         if (!numericIndices.empty)
         {
-            selectedDataIndex = numericIndices[0];
-            dataPoints = new float[](dataCsv.numRows);
-            renewData();
+            foreach (i; 0..numberOfRows)
+            {
+                selectedDataIndex = numericIndices[i];
+                dataPoints[i] = new float[](dataCsv.numRows);
+                renewDataForIndex(i);
+            }
         }
+
+        colorsCsv = loadCsv(getAssetPath("colors.csv"));
+        import std.algorithm;
+        colors = colorsCsv.data[2]
+            .map!(a => to!int(a.get()[1..$], 16))
+            .map!(a => vec3((a & 0xFF) >> 0, (a & 0xFF00) >> 8, (a & 0xFF0000) >> 16) / 255)
+            .array;
     }
 
     void visualizeDataPoints()
     {
         float heightGap = params.maxHeight - params.minHeight;
         float valueGap = maxDataValue - minDataValue;
-        float xShift = 0;
+        float spacing = params.spacing * numberOfRows;
 
-        foreach (index; startIndex..endIndex+1)
+        foreach (i; 0..numberOfRows)
         {
-            float value = dataPoints[index];
-            float height;
-            import std.math.traits;
-            if (isNaN(value))
-            {
-                height = params.belowMinHeight;
-            }
-            else
-            {
-                height = params.minHeight + (heightGap) * (value - minDataValue) / valueGap;
-            }
-            auto scale = scaleMatrix(vec3(params.width, height, params.width));
-            auto transform = translationMatrix(vec3(xShift, 0, 0)) * scale;
-            prismModel.draw(&uniforms, transform);
+            float xShift = (i * (spacing + params.width)) / 2;
+            float zShift = (i * (spacing + params.width));
 
+            foreach (index; startIndex..endIndex+1)
             {
-                import std.math : PI_2;
-                auto factor = params.width / g_TextDrawer.getHeight();
-                auto textScale = scaleMatrix(vec3(factor, factor, 1));
-                auto textRotation = rotationMatrix(Axis.z, -cast(float) PI_2);
-                auto textTranslation = translationMatrix(vec3(xShift, 0, params.width));
-                g_TextDrawer.drawLine(
-                    dataCsv.data[selectedLabelIndex][index], 
-                    TextAlignment.Right|TextAlignment.Top, 
-                    textTranslation * textRotation * textScale);
-            }
+                float value = dataPoints[i][index];
+                float height;
+                import std.math.traits;
+                if (isNaN(value))
+                {
+                    height = params.belowMinHeight;
+                }
+                else
+                {
+                    height = params.minHeight + (heightGap) * (value - minDataValue) / valueGap;
+                }
+                auto scale = scaleMatrix(vec3(params.width, height, params.width));
+                auto transform = translationMatrix(vec3(xShift, 0, -zShift)) * scale;
+                enum howFastColorChanges = 21;
+                uniforms.uColor = colors[(index * howFastColorChanges) % $];
+                prismModel.draw(&uniforms, transform);
 
-            xShift += (params.spacing + params.width);
+                if (i == 0) 
+                {
+                    import std.math : PI_2;
+                    auto factor = params.width / g_TextDrawer.getHeight();
+                    auto textScale = scaleMatrix(vec3(factor, factor, 1));
+                    auto textRotation = rotationMatrix(Axis.z, -cast(float) PI_2);
+                    auto textTranslation = translationMatrix(vec3(xShift, 0, params.width));
+                    g_TextDrawer.drawLine(
+                        dataCsv.data[selectedLabelIndex][index], 
+                        TextAlignment.Right|TextAlignment.Top, 
+                        textTranslation * textRotation * textScale);
+                }
+
+                xShift += (spacing + params.width);
+            }
         }
     }
 
@@ -182,13 +205,13 @@ class App : IApp
 
         if (!dataCsv.getNumericIndices().empty)
         {
-            drawText("Numeric: " ~ dataCsv.header[selectedDataIndex], vec3(-1, 0, 0));
+            drawText("Numeric: " ~ dataCsv.header[selectedDataIndex[0]], vec3(-1, 0, 0));
         }
         drawText("Label: " ~ dataCsv.header[selectedLabelIndex], vec3(-1, g_TextDrawer.getHeight(), 0));
     }
 
     size_t selectedLabelIndex = 0;
-    size_t selectedDataIndex = 0;
+    size_t[numberOfRows] selectedDataIndex = 0;
 
     void doImgui()
     {
@@ -209,20 +232,26 @@ class App : IApp
         }
 
         auto numeric = dataCsv.getNumericIndices();
-        if (!numeric.empty && ImGui.BeginCombo("Select data column", dataCsv.header[selectedDataIndex].nullTerminated))
+        if (!numeric.empty)
         {
-            foreach (index; numeric)
+            foreach (i, ref selectedIndex; selectedDataIndex)
             {
-                bool isSelected = (index == selectedDataIndex);
-                if (ImGui.Selectable(dataCsv.header[index].nullTerminated, isSelected))
+                if (ImGui.BeginCombo(toStringz("Select data column " ~ to!string(i)), dataCsv.header[selectedIndex].nullTerminated))
                 {
-                    selectedDataIndex = index;
-                    renewData();
+                    foreach (index; numeric)
+                    {
+                        bool isSelected = (index == selectedIndex);
+                        if (ImGui.Selectable(dataCsv.header[index].nullTerminated, isSelected))
+                        {
+                            selectedIndex = index;
+                            renewDataForIndex(i);
+                        }
+                        if (isSelected)
+                            ImGui.SetItemDefaultFocus();
+                    }
+                    ImGui.EndCombo();
                 }
-                if (isSelected)
-                    ImGui.SetItemDefaultFocus();
             }
-            ImGui.EndCombo();
         }
 
         ImGui.SliderInt("Starting index", &startIndex, 0, endIndex);
