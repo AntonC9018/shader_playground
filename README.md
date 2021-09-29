@@ -15,7 +15,7 @@ Now, in D, metaprogramming is a thing, and it's actually trivial to use. Via met
 
 ## Build Instructions
 
-1. Install (DMD)[https://dlang.org/download.html]. Make sure to add it in PATH (it will prompt you on installation).
+1. Install [DMD](https://dlang.org/download.html). Make sure to add it in PATH (it will prompt you on installation).
 2. Clone this repo `git clone --recursive https://github.com/AntonC9018/shader_playground`.
 3. To run, do `dub run`.
 
@@ -32,10 +32,10 @@ Find the line `import xxx : App;` and replace `xxx` with the name of the file.
 While compiling, you may encounter issues with ImGui or GLFW. 
 This probably means the libraries are not compatible with your OS.
 
-For ImGui build-helper script, see (this)[https://github.com/Superbelko/imgui-d]. 
+For ImGui build-helper script, see [this](https://github.com/Superbelko/imgui-d). 
 ImGui is linked statically, you'll need to replace `lib/imgui.lib` with the version of the library compiled for your OS.
 
-For GLFW, download precompiled binaries (at their site)[https://www.glfw.org/]. 
+For GLFW, download precompiled binaries [at their site](https://www.glfw.org/). 
 It is linked dynamically, so put it in the bin folder.
 
 Running the program may give you errors that your OpenGL version is too old. 
