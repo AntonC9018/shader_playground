@@ -10,7 +10,7 @@ Now, in D, metaprogramming is a thing, and it's actually trivial to use. Via met
 
 ![Screenshot2](screenshot_2.png)
 
-![Diagram](screenshot_Diagram.png)
+![Diagram](Screenshot_Diagram.png)
 
 
 ## Build Instructions
