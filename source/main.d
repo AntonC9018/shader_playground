@@ -2,7 +2,6 @@ module main;
 
 void main(string[] args)
 {
-
     import shaderplayground.initialization : initialize, shutdown;
 
     // TODO: Load from dll. Should be pretty easy too.

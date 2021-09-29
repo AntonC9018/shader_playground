@@ -91,8 +91,6 @@ class App : IApp
 
     void renewDataForIndex(size_t index)
     {
-        minDataValue =  float.infinity;
-        maxDataValue = -float.infinity;
         foreach (i; 0..dataCsv.numRows)
         {
             if (dataCsv.data[selectedDataIndex[index]][i] == "")
@@ -126,11 +124,13 @@ class App : IApp
         dataCsv = loadCsv(getAssetPath("income.csv"));
         import std.range;
         numericIndices = dataCsv.getNumericIndices().array;
+        minDataValue =  float.infinity;
+        maxDataValue = -float.infinity;
         if (!numericIndices.empty)
         {
             foreach (i; 0..numberOfRows)
             {
-                selectedDataIndex = numericIndices[i];
+                selectedDataIndex[i] = numericIndices[i % $];
                 dataPoints[i] = new float[](dataCsv.numRows);
                 renewDataForIndex(i);
             }
@@ -140,7 +140,7 @@ class App : IApp
         import std.algorithm;
         colors = colorsCsv.data[2]
             .map!(a => to!int(a.get()[1..$], 16))
-            .map!(a => vec3((a & 0xFF) >> 0, (a & 0xFF00) >> 8, (a & 0xFF0000) >> 16) / 255)
+            .map!(a => vec3((a & 0xFF0000) >> 16, (a & 0xFF00) >> 8, (a & 0xFF) >> 0) / 255)
             .array;
     }
 
@@ -170,7 +170,7 @@ class App : IApp
                 }
                 auto scale = scaleMatrix(vec3(params.width, height, params.width));
                 auto transform = translationMatrix(vec3(xShift, 0, -zShift)) * scale;
-                enum howFastColorChanges = 21;
+                enum howFastColorChanges = 1;
                 uniforms.uColor = colors[(index * howFastColorChanges) % $];
                 prismModel.draw(&uniforms, transform);
 
@@ -256,13 +256,13 @@ class App : IApp
 
         ImGui.SliderInt("Starting index", &startIndex, 0, endIndex);
         ImGui.SliderInt("Ending index", &endIndex, startIndex, cast(int) dataCsv.numRows - 1);
-        if (startIndex < 0) 
-            startIndex = 0;
-        if (endIndex >= dataCsv.numRows) 
-            endIndex = cast(int) dataCsv.numRows - 1;
-        if (startIndex > endIndex) 
-            startIndex = endIndex;
-        if (endIndex < startIndex)
-            endIndex = startIndex;
+        // if (startIndex < 0) 
+        //     startIndex = 0;
+        // if (endIndex >= dataCsv.numRows) 
+        //     endIndex = cast(int) dataCsv.numRows - 1;
+        // if (startIndex > endIndex) 
+        //     startIndex = endIndex;
+        // if (endIndex < startIndex)
+        //     endIndex = startIndex;
     }
 }
