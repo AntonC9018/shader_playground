@@ -6,11 +6,15 @@ It's tedious to do shaders in C or C++, because you will end up writing a lot mo
 
 Now, in D, metaprogramming is a thing, and it's actually trivial to use. Via metaprogramming, the tediuos tasks can be simplified or entirely eliminated, which helps focus on the actual work — the shader code. Plus, D is a hell of a lot more enjoyable and simple than C++, and it compiles faster.
 
-![Screenshot](screenshot.png)
+![Screenshot](screenshots/sphere.png)
 
-![Screenshot2](screenshot_2.png)
+![Screenshot2](screenshots/sphere_cube.png)
 
-![Diagram](Screenshot_Diagram.png)
+![Diagram](screenshots/diagram.png)
+
+![Paint effect](screenshots/paint_effect.png)
+
+![Covor](screenshots/covor.png)
 
 
 ## Build Instructions
@@ -22,6 +26,7 @@ Now, in D, metaprogramming is a thing, and it's actually trivial to use. Via met
 There are two "Apps" at the moment, contained in separate files next to `source/main.d`:
 - `app.d` is a demo on textures and objects with an ambient diffuse lighting shader;
 - `diagram.d` is a 3d visualization of national income data at `assets/income.csv`.
+- `cloth.d` is a noise demo.
 
 To change which app to run, you just need to instantiate the correct App class in main. 
 Find the line `import xxx : App;` and replace `xxx` with the name of the file.

@@ -156,14 +156,21 @@ class FreeviewComponent
                 turnSmooth(tp.x, 4.0f);
             }
 
-            if (getKeyDown(KEY.W))
-                translateTarget(transform.forward * speed);
-            if (getKeyDown(KEY.S))
-                translateTarget(-transform.forward * speed);
-            if (getKeyDown(KEY.A))
-                translateTarget(transform.right * speed);
-            if (getKeyDown(KEY.D))
-                translateTarget(-transform.right * speed);
+            with (KEY)
+            {
+                if (getKeyDown(W))
+                    translateTarget(transform.forward * speed);
+                if (getKeyDown(S))
+                    translateTarget(-transform.forward * speed);
+                if (getKeyDown(A))
+                    translateTarget(transform.right * speed);
+                if (getKeyDown(D))
+                    translateTarget(-transform.right * speed);
+                if (getKeyDown(SPACE))
+                    translateTarget(-transform.up * speed);
+                if (getKeyDown(LEFT_SHIFT))
+                    translateTarget(transform.up * speed);
+            }
         }
         prevMousePosition = getMousePosition();
 

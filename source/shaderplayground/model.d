@@ -123,7 +123,7 @@ template makeSquare(TAttribute)
     static immutable vertices = _getVertices();
     static immutable indices = [ivec3(0, 1, 2), ivec3(0, 2, 3)];
 
-    auto makeSphere()
+    auto makeSquare()
     {
         return ModelData!TAttribute(vertices, indices);
     }

@@ -17,47 +17,72 @@ struct Range
     float b;
 }
 
-template VertexAttributeShaderDeclarations(TAttribute)
+/// Whether to be included by default in the text of the corresponding shader type.
+enum Fragment;
+enum Vertex;
+
+private string getTypeName(F)()
 {
-    template Prefix(T)
+    string getTypePrefix(T)()
     {
         static if (is(T == float))
-            enum Prefix = "";
+            return "";
         else static if (is(T == int))
-            enum Prefix = "i";
+            return "i";
         else static if (is(T == bool))
-            enum Prefix = "b";
+            return "b";
         else static assert(0);
     }
-    string _get()
+
+    static if (is(F == float) || is(F == int) || is(F == bool))
     {
-        string result = "";
-        static foreach (field; TAttribute.tupleof)
-        {{
-            string typeName;
-            alias F = typeof(field);
-
-            static if (is(F == float) || is(F == int) || is(F == bool))
-            {
-                typeName = F.stringof;
-            }
-            else static if (is(F : Vector!(T, N), T, int N))
-            {
-                typeName = Prefix!T ~ "vec" ~ N.to!string();
-            }
-            else static if (is(F : Matrix!(T, N), T, int N))
-            {
-                static assert (is(T == float));
-                typeName = "mat" ~ N.to!string();
-            }
-            else static assert(0);
-
-            result ~= `in ` ~ typeName ~ ` ` ~ __traits(identifier, field) ~ ";\n";
-        }}
-        return result;
+        return F.stringof;
     }
-    enum string VertexAttributeShaderDeclarations = _get();
+    else static if (is(F : Vector!(T, N), T, int N))
+    {
+        return getTypePrefix!T ~ "vec" ~ N.to!string();
+    }
+    else static if (is(F : Matrix!(T, N), T, int N))
+    {
+        static assert (is(T == float));
+        return "mat" ~ N.to!string();
+    }
+    else static assert(0);
 }
+
+private string getUniformTypeName(F)()
+{
+    import shaderplayground.texture : Texture2D;
+    static if (is(F == Texture2D))
+        return "sampler2D";
+    else
+        return getTypeName!F;
+}
+
+string VertexAttributeShaderDeclarations(TAttribute)()
+{
+    string result = "";
+    static foreach (field; TAttribute.tupleof)
+    {
+        result ~= `in ` ~ getTypeName!(typeof(field)) ~ ` ` ~ __traits(identifier, field) ~ ";\n";
+    }
+    return result;
+}
+
+private string ShaderMarkedUniformDeclarations(TUniforms, alias shaderType)()
+{
+    string result = "";
+    static foreach (field; TUniforms.tupleof)
+    static foreach (uda; __traits(getAttributes, field))
+    static if (is(uda == shaderType))
+    {
+        result ~= `uniform ` ~ getUniformTypeName!(typeof(field)) ~ ` ` ~ __traits(identifier, field) ~ ";\n";
+    }
+    return result;
+}
+
+string VertexMarkedUniformDeclarations(TUniforms)() { return ShaderMarkedUniformDeclarations!(TUniforms, Vertex); }
+string FragmentMarkedUniformDeclarations(TUniforms)() { return ShaderMarkedUniformDeclarations!(TUniforms, Fragment); }
 
 
 private void doEdit(T)(string name, T* memory)
@@ -263,6 +288,7 @@ struct ShaderProgram(TUniforms)
         static foreach (field; TUniforms.tupleof)
         {{
             enum string name = __traits(identifier, field);
+            import shaderplayground.texture;
 
             static if (is(typeof(field) == Texture2D))
             {

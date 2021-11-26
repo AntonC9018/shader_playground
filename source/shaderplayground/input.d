@@ -27,7 +27,8 @@ enum KEY
     S = GLFW_KEY_S,
     A = GLFW_KEY_A,
     D = GLFW_KEY_D,
-    SPACE = GLFW_KEY_SPACE
+    SPACE = GLFW_KEY_SPACE,
+    LEFT_SHIFT = GLFW_KEY_LEFT_SHIFT
 }
 
 auto getKeyDown(KEY key)

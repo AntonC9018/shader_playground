@@ -1,4 +1,5 @@
 module shaderplayground.shadercommon;
+
 public import shaderplayground.logger;
 public import bindbc.opengl;
 public import dlib.math;
@@ -49,42 +50,6 @@ void errors(ref Logger logger)
     }
 }
 
-struct Texture2D
-{
-    uint id;
-
-    void create()
-    {
-        glGenTextures(1, &id);
-        bind();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    }
-
-    void bind()
-    {
-        glBindTexture(GL_TEXTURE_2D, id);
-    }
-
-    import arsd.png;
-    void setData(const TrueColorImage image)
-    { 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.imageData.bytes.ptr);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-
-    static Texture2D make(const TrueColorImage image)
-    {
-        Texture2D result;
-        result.create();
-        result.bind();
-        result.setData(image);
-        return result;
-    }
-}
-
 struct Uniform(T)
 {
     string name; 
@@ -109,6 +74,7 @@ struct Uniform(T)
     }
     
     import arsd.png;
+    import shaderplayground.texture;
     
     static if (is(T == float) || is(T == int) || is(T == uint)) 
     {
