@@ -2,34 +2,29 @@ module cloth;
 
 import shaderplayground;
 
-struct TestUniforms
+struct Uniforms
 {
-    /// These ones here are built in.
-    mat4 uModelViewProjection;
+    @Vertex mat4 uModelViewProjection;
 
     @Fragment {
+        float uTime;
         Texture2D uTexture;
         @Range(0, 2) float uDisplacementFactor = 1;
         @Range(0, 100) float uLocality = 1;
     }
 }
 
-/// The idea is that these vertex attributes are automatically mirrored 
-/// in the shader code below, so they are never out of sync
-struct TestAttribute
+struct Attribute
 {
-    // vec3 aNormal;
     vec3 aPosition;
     vec2 aTexCoord;
 }
 
-alias Model_t = Model!(TestAttribute, TestUniforms);
-alias Object_t = shaderplayground.object.Object!(TestAttribute, TestUniforms);
+alias Model_t = Model!(Attribute, Uniforms);
+alias Object_t = shaderplayground.object.Object!(Attribute, Uniforms);
 
 immutable string vertexShaderText = SHADER_HEADER 
-    ~ VertexAttributeShaderDeclarations!TestAttribute ~ q{
-
-    uniform mat4 uModelViewProjection;
+    ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
 
     out vec2 vTexCoord;
 
@@ -42,7 +37,7 @@ immutable string vertexShaderText = SHADER_HEADER
 
 // https://thebookofshaders.com/11/
 immutable string fragmentShaderText = SHADER_HEADER
-    ~ FragmentMarkedUniformDeclarations!TestUniforms ~ q{
+    ~ FragmentMarkedUniformDeclarations!Uniforms ~ q{
 
     in vec2 vTexCoord;
     out vec4 fragColor;
@@ -82,8 +77,10 @@ immutable string fragmentShaderText = SHADER_HEADER
 
     void main() 
     {
-        float x = noise(vTexCoord * uLocality) * uDisplacementFactor / uLocality;
-        float y = noise(vTexCoord * uLocality + 5.0) * uDisplacementFactor / uLocality;
+        float displacement = uDisplacementFactor / uLocality;
+        vec2 sampledPoint = vTexCoord * uLocality + uTime;
+        float x = noise(sampledPoint) * displacement;
+        float y = noise(sampledPoint + 5.0) * displacement;
         fragColor = texture(uTexture, vTexCoord + vec2(x, y));
     }
 };
@@ -91,18 +88,18 @@ immutable string fragmentShaderText = SHADER_HEADER
 
 class App : IApp
 {
-    TestUniforms uniforms;
-    ShaderProgram!TestUniforms program;
+    Uniforms uniforms;
+    ShaderProgram!Uniforms program;
     TextureManager textureManager;
     Model_t squareModel;
     Object_t square;
 
     void setup()
     {
-        program = ShaderProgram!TestUniforms();
+        program = ShaderProgram!Uniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
-        squareModel = createModel(&program, makeSquare!TestAttribute);
+        squareModel = createModel(&program, makeSquare!Attribute);
         square = makeObject(&squareModel);
 
         textureManager.setup();
@@ -111,6 +108,7 @@ class App : IApp
 
     void loop(double dt)
     {
+        uniforms.uTime = glfwGetTime();
         square.draw(&uniforms);
     }
 

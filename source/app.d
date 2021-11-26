@@ -3,19 +3,22 @@ import shaderplayground;
 
 struct TestUniforms
 {
-    @Color             vec3 uColor = vec3(1, 1, 1);
-    @Range(0, 1)       float uAmbient = 0.2;
-    @Range(0, 1)       float uDiffuse = 0.5;
-    @Edit              vec3 uLightPosition = vec3(0, 5, 1);
+    @Fragment {
+        @Color             vec3 uColor = vec3(1, 1, 1);
+        @Range(0, 1)       float uAmbient = 0.2;
+        @Range(0, 1)       float uDiffuse = 0.5;
+        @Edit              vec3 uLightPosition = vec3(0, 5, 1);
+        Texture2D uTexture;
+        
+        // Built-in
+        mat4 uView;
+    }
     
-    /// These ones here are built in.
-    mat4 uModelViewProjection;
-    mat3 uModelViewInverseTranspose;
-    mat4 uModelView;
-    mat4 uView;
-
-    // mat4 uModel;
-    Texture2D uTexture;
+    @Vertex {
+        mat4 uModelViewProjection;
+        mat3 uModelViewInverseTranspose;
+        mat4 uModelView;
+    }
 }
 
 /// The idea is that these vertex attributes are automatically mirrored 
@@ -31,10 +34,7 @@ alias Model_t = Model!(TestAttribute, TestUniforms);
 alias Object_t = shaderplayground.object.Object!(TestAttribute, TestUniforms);
 
 immutable string vertexShaderText = SHADER_HEADER 
-    ~ VertexAttributeShaderDeclarations!TestAttribute ~ q{
-    uniform mat4 uModelViewProjection;
-    uniform mat4 uModelView;
-    uniform mat3 uModelViewInverseTranspose;
+    ~ VertexDeclarations!(TestAttribute, TestUniforms) ~ q{
 
     out vec3 vNormal;
     out vec4 vECPosition;
@@ -49,20 +49,14 @@ immutable string vertexShaderText = SHADER_HEADER
     }
 };
 
-immutable string fragmentShaderText = SHADER_HEADER ~ q{
+immutable string fragmentShaderText = SHADER_HEADER 
+    ~ FragmentMarkedUniformDeclarations!TestUniforms ~ q{
+
     in vec3 vNormal;
     in vec4 vECPosition;
     in vec2 vTexCoord;
 
-    uniform mat4 uView;
-
     out vec4 fragColor;
-
-    uniform vec3 uColor;
-    uniform float uAmbient;
-    uniform float uDiffuse;
-    uniform vec3 uLightPosition;
-    uniform sampler2D uTexture;
 
     void main()
     {

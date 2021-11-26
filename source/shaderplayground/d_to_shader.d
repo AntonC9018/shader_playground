@@ -84,6 +84,10 @@ private string ShaderMarkedUniformDeclarations(TUniforms, alias shaderType)()
 string VertexMarkedUniformDeclarations(TUniforms)() { return ShaderMarkedUniformDeclarations!(TUniforms, Vertex); }
 string FragmentMarkedUniformDeclarations(TUniforms)() { return ShaderMarkedUniformDeclarations!(TUniforms, Fragment); }
 
+string VertexDeclarations(TAttribute, TUniforms)() 
+{ 
+    return VertexAttributeShaderDeclarations!TAttribute ~ VertexMarkedUniformDeclarations!TUniforms;
+}
 
 private void doEdit(T)(string name, T* memory)
 {

@@ -1,37 +1,39 @@
 module diagram;
 import shaderplayground;
 
-struct TestUniforms
+struct Uniforms
 {
-    @Color             vec3 uColor = vec3(1, 1, 1);
-    @Range(0, 1)       float uAmbient = 0.2;
-    @Range(0, 1)       float uDiffuse = 0.5;
-    @Edit              vec3 uLightPosition = vec3(0, 5, 1);
+    @Fragment {
+        @Color             vec3 uColor = vec3(1, 1, 1);
+        @Range(0, 1)       float uAmbient = 0.2;
+        @Range(0, 1)       float uDiffuse = 0.5;
+        @Edit              vec3 uLightPosition = vec3(0, 5, 1);
+        
+        // Built-in
+        mat4 uView;
+    }
     
-    /// These ones here are built in.
-    mat4 uModelViewProjection;
-    mat3 uModelViewInverseTranspose;
-    mat4 uModelView;
-    mat4 uView;
+    @Vertex {
+        mat4 uModelViewProjection;
+        mat3 uModelViewInverseTranspose;
+        mat4 uModelView;
+    }
 }
 
 /// The idea is that these vertex attributes are automatically mirrored 
 /// in the shader code below, so they are never out of sync
-struct TestAttribute
+struct Attribute
 {
     vec3 aNormal;
     vec3 aPosition;
     // vec2 aTexCoord;
 }
 
-alias Model_t = Model!(TestAttribute, TestUniforms);
-alias Object_t = shaderplayground.object.Object!(TestAttribute, TestUniforms);
+alias Model_t = Model!(Attribute, Uniforms);
+alias Object_t = shaderplayground.object.Object!(Attribute, Uniforms);
 
 immutable string vertexShaderText = SHADER_HEADER 
-    ~ VertexAttributeShaderDeclarations!TestAttribute ~ q{
-    uniform mat4 uModelViewProjection;
-    uniform mat4 uModelView;
-    uniform mat3 uModelViewInverseTranspose;
+    ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
 
     out vec3 vNormal;
     out vec4 vECPosition;
@@ -44,18 +46,13 @@ immutable string vertexShaderText = SHADER_HEADER
     }
 };
 
-immutable string fragmentShaderText = SHADER_HEADER ~ q{
+immutable string fragmentShaderText = SHADER_HEADER
+    ~ FragmentMarkedUniformDeclarations!Uniforms ~ q{
+        
     in vec3 vNormal;
     in vec4 vECPosition;
 
-    uniform mat4 uView;
-
     out vec4 fragColor;
-
-    uniform vec3 uColor;
-    uniform float uAmbient;
-    uniform float uDiffuse;
-    uniform vec3 uLightPosition;
 
     void main()
     {
@@ -73,8 +70,8 @@ class App : IApp
 {
     import shaderplayground.object;
     import shaderplayground.csv;
-    TestUniforms uniforms;
-    ShaderProgram!TestUniforms program;
+    Uniforms uniforms;
+    ShaderProgram!Uniforms program;
     Model_t prismModel;
     Csv dataCsv;
     Csv colorsCsv;
@@ -117,9 +114,9 @@ class App : IApp
 
     void setup()
     {
-        program = ShaderProgram!TestUniforms();
+        program = ShaderProgram!Uniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
-        prismModel = Model_t(&program, makePrism!TestAttribute());
+        prismModel = Model_t(&program, makePrism!Attribute());
 
         dataCsv = loadCsv(getAssetPath("income.csv"));
         import std.range;
