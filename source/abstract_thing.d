@@ -3,6 +3,7 @@ module abstract_thing;
 import shaderplayground;
 
 // This was supposed to be a hair shader, but it turned out more like abstract art
+// The problem is that I cannot rotate around center of the blob because I cannot know its position.
 struct Uniforms
 {
     @Vertex mat4 uModelViewProjection;
