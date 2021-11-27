@@ -285,7 +285,7 @@ auto makeSphere(TAttribute)(uint recursionCount)
 
 
 
-template makePrism(TAttribute)
+template makeCube(TAttribute)
 {
     struct DataResult
     {
@@ -357,13 +357,15 @@ template makePrism(TAttribute)
             size_t vertexIndexInCurrentQuad = 0;
             foreach (triVertexIndex; indexSetsPerSide[indexSetIndex..indexSetIndex + 4])
             {
+                auto vert = &result.vertices[vertexIndex];
+
                 static if (__traits(hasMember, TAttribute, "aNormal"))
-                    result.vertices[vertexIndex].aNormal = normal;
+                    vert.aNormal = normal;
 
                 static if (__traits(hasMember, TAttribute, "aTexCoord"))
-                    result.vertices[vertexIndex].aTexCoord = vec2(positions[vertexIndexInCurrentQuad]);
+                    vert.aTexCoord = typeof(vert.aTexCoord)(positions[vertexIndexInCurrentQuad]);
 
-                result.vertices[vertexIndex].aPosition = positions[triVertexIndex];
+                vert.aPosition = positions[triVertexIndex];
                 vertexIndex++;
                 vertexIndexInCurrentQuad++;
             }
@@ -376,7 +378,7 @@ template makePrism(TAttribute)
     static immutable vertices = verticesAndIndices.vertices;
     static immutable indices = verticesAndIndices.indices;
 
-    auto makePrism()
+    auto makeCube()
     {
         import std.stdio;
         return ModelData!TAttribute(vertices[], cast(ivec3[]) indices[]);

@@ -116,7 +116,7 @@ class App : IApp
     {
         program = ShaderProgram!Uniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
-        prismModel = Model_t(&program, makePrism!Attribute());
+        prismModel = Model_t(&program, makeCube!Attribute());
 
         dataCsv = loadCsv(getAssetPath("income.csv"));
         import std.range;

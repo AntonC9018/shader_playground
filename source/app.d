@@ -92,7 +92,7 @@ class App : IApp
 
         enum recursionCount = 3;
         sphereModel = Model_t(&program, makeSphere!TestAttribute(recursionCount));
-        prismModel = Model_t(&program, makePrism!TestAttribute());
+        prismModel = Model_t(&program, makeCube!TestAttribute());
         
         sphere = Object_t(&sphereModel, translationMatrix(vec3(1, 1, 2)));
         prism = Object_t(&prismModel);

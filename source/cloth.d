@@ -35,13 +35,8 @@ immutable string vertexShaderText = SHADER_HEADER
     }
 };
 
-// https://thebookofshaders.com/11/
-immutable string fragmentShaderText = SHADER_HEADER
-    ~ FragmentMarkedUniformDeclarations!Uniforms ~ q{
 
-    in vec2 vTexCoord;
-    out vec4 fragColor;
-
+immutable string noiseText = q{
     // 2D Random
     float random (in vec2 st) 
     {
@@ -74,6 +69,14 @@ immutable string fragmentShaderText = SHADER_HEADER
                 (c - a)* u.y * (1.0 - u.x) +
                 (d - b) * u.x * u.y;
     }
+};
+
+// https://thebookofshaders.com/11/
+immutable string fragmentShaderText = SHADER_HEADER
+    ~ FragmentMarkedUniformDeclarations!Uniforms ~ q{
+
+    in vec2 vTexCoord;
+    out vec4 fragColor;
 
     void main() 
     {

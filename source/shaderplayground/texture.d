@@ -28,15 +28,54 @@ struct Texture2D
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.imageData.bytes.ptr);
         glGenerateMipmap(GL_TEXTURE_2D);
     }
+}
 
-    static Texture2D make(const TrueColorImage image)
+Texture2D texture2D(const TrueColorImage image)
+{
+    Texture2D result;
+    result.create();
+    result.bind();
+    result.setData(image);
+    return result;
+}
+
+struct CubeMap
+{
+    uint id;
+
+    void create()
     {
-        Texture2D result;
-        result.create();
-        result.bind();
-        result.setData(image);
-        return result;
+        glGenTextures(1, &id);
+        bind();
+
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     }
+
+    void bind()
+    {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, id);
+    }
+
+    void setData(in TrueColorImage[6] images)
+    { 
+        foreach (uint i, image; images)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, image.width, image.height, 0, GL_RGB, GL_UNSIGNED_BYTE, image.imageData.bytes.ptr);
+        }
+    }
+}
+
+CubeMap cubeMap(in TrueColorImage[6] images)
+{
+    CubeMap result;
+    result.create();
+    result.bind();
+    result.setData(images);
+    return result;
 }
 
 struct TextureManager
@@ -49,15 +88,13 @@ struct TextureManager
         TrueColorImage image;
         Texture2D texture;
 
-        static TextureThing make(string pngPath)
+        this(string pngPath)
         {
             import std.path;
 
-            TextureThing t = void;
-            t.image   = cast(TrueColorImage) readPng(pngPath);
-            t.texture = Texture2D.make(t.image);
-            t.name    = baseName(pngPath);
-            return t;
+            image   = cast(TrueColorImage) readPng(pngPath);
+            texture = texture2D(image);
+            name    = baseName(pngPath);
         }
     }
 
@@ -70,7 +107,7 @@ struct TextureManager
         // TODO: watch the folder and add files when they appear there
         foreach (string pngPath; dirEntries(getAssetsPath(), "*.png", SpanMode.shallow))
         {
-            auto t = TextureThing.make(pngPath);
+            auto t = TextureThing(pngPath);
             textures[t.name] = t;
             currentTexture = t.name in textures;
         }
@@ -104,5 +141,63 @@ struct TextureManager
             }
             ImGui.EndCombo();
         }
+    }
+}
+
+
+struct SkyBox
+{
+    import shaderplayground;
+
+    struct Attribute
+    {
+        vec3 aPosition;
+    }
+    
+    struct Uniforms
+    {
+        @Fragment CubeMap uSkybox;
+        @Vertex mat4 uViewProjection;
+    }
+
+    static immutable vertexShaderText = SHADER_HEADER
+    ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
+        
+        out vec3 vTexCoord;
+        
+        void main()
+        {
+            vTexCoord = aPosition;
+            gl_Position = uViewProjection * aPosition;
+        }
+    };
+
+    static immutable fragmentShaderText = SHADER_HEADER
+    ~ FragmentMarkedUniformDeclarations!(Uniforms) ~ q{
+
+        out vec4 fragColor;
+        in vec3 vTexCoord;
+
+        void main()
+        {
+            fragColor = texture(uSkybox, vTexCoord);
+        }
+    };
+
+    /// ---  Member Variables!!!
+    CubeMap cubeMap;
+    Model!(Attribute, Uniforms) cubeModel;
+    ShaderProgram!Uniforms program;
+
+
+    void setup()
+    {
+        program = ShaderProgram!Uniforms();
+        assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
+    }
+
+    void loop()
+    {
+
     }
 }

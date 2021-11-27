@@ -84,9 +84,9 @@ struct Uniform(T)
             errors("Uniform " ~ name);
         }
     }
-    else static if (is(T == Texture2D))
+    else static if (is(T == Texture2D) || is(T == CubeMap))
     {
-        void set(Texture2D tex, uint textureUnit)
+        void set(T tex, uint textureUnit)
         {
             glActiveTexture(cast(GLenum) (GL_TEXTURE0 + textureUnit));
             tex.bind();

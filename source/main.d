@@ -5,7 +5,7 @@ void main(string[] args)
     import shaderplayground.initialization : initialize, shutdown;
 
     // TODO: Load from dll. Should be pretty easy too.
-    import cloth : App;
+    import cloth2 : App;
 
     initialize();
     run([new App()]);

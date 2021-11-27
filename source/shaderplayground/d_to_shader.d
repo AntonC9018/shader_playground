@@ -52,9 +52,11 @@ private string getTypeName(F)()
 
 private string getUniformTypeName(F)()
 {
-    import shaderplayground.texture : Texture2D;
+    import shaderplayground.texture : Texture2D, CubeMap;
     static if (is(F == Texture2D))
         return "sampler2D";
+    else static if (is(F == CubeMap))
+        return "samplerCube";
     else
         return getTypeName!F;
 }
@@ -294,7 +296,7 @@ struct ShaderProgram(TUniforms)
             enum string name = __traits(identifier, field);
             import shaderplayground.texture;
 
-            static if (is(typeof(field) == Texture2D))
+            static if (is(typeof(field) == Texture2D) || is(typeof(field) == CubeMap))
             {
                 __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field), textureUnitIndex);
                 textureUnitIndex++;

@@ -181,7 +181,7 @@ struct TextDrawer
         auto fontBitmap = cast(TrueColorImage) readBmp(getAssetPath("bmp_fonts/consolas.bmp"));
         fontBitmapMetadata = FontBitmapMetadata(fontBitmap);
 
-        uniforms.uTexture = Texture2D.make(fontBitmap);
+        uniforms.uTexture = texture2D(fontBitmap);
         
         glGenVertexArrays(1, &vaoId);
         glBindVertexArray(vaoId);
