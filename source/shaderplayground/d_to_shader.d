@@ -310,17 +310,27 @@ struct ShaderProgram(TUniforms)
         }}
     }
 
-    bool initialize(string vertexSource, string fragmentSource)
+    bool initialize(S)(in S vertexSource, in S fragmentSource)
     {
         import shaderplayground.shaderloader;
-
-        import std.file;
-        if (!exists("temp")) mkdir("temp");
-        write(`temp\shader.vertex`, vertexSource);
-        write(`temp\shader.fragment`, fragmentSource);
-
-        vertexShaderId = compileShader(vertexSource, ShaderStage.vertex); 
-        fragmentShaderId = compileShader(fragmentSource, ShaderStage.fragment); 
+        
+        string[2] sources;
+        // This has way more info.
+        // TODO: Adjust the file and line received from open gl using info in here.
+        // TODO: Watch the source file, adjust the source, if possible.
+        // TODO: Figure out imports (remove duplicate imports).  
+        static if (is(S == ShaderSource))
+        {
+            sources[0] = vertexSource.text;
+            sources[1] = fragmentSource.text;
+        }
+        else
+        {
+            sources[0] = vertexSource;
+            sources[1] = fragmentSource;
+        }
+        vertexShaderId = compileShader(sources[0], ShaderStage.vertex); 
+        fragmentShaderId = compileShader(sources[1], ShaderStage.fragment); 
         if (vertexShaderId == 0 || fragmentShaderId == 0) return false;
 
         id = linkShaders(vertexShaderId, fragmentShaderId);
@@ -328,9 +338,8 @@ struct ShaderProgram(TUniforms)
 
         uniformInfos.queryLocations(id);
         errors(logger);
-        if (logger.hasErrors) return false;
 
-        return true;
+        return !logger.hasErrors;
     }
 
     void use()
@@ -480,4 +489,45 @@ void load(T)(out T uniforms)
 }
 
 
+struct ShaderSource
+{
+    string source;
+    const ShaderSource[] imports;
+    string deducedDeclarations;
+    string header;
+    string file;
+    size_t line;
+    
+    const:
+    string text()
+    {
+        string result = header;
+        result ~= deducedDeclarations;
+        foreach (i; imports)
+            result ~= i.text();
+        result ~= source;
+        return result;
+    }
+}
 
+ShaderSource createShaderSource(
+    string source, 
+    string declarations = "", 
+    const ShaderSource[] imports = null, 
+    string header = SHADER_HEADER,
+    string file = __FILE__,
+    size_t line = __LINE__)
+{
+    return ShaderSource(source, imports, declarations, header, file, line);
+}
+
+ShaderSource createShaderImport(
+    string source, 
+    string declarations = "", 
+    const ShaderSource[] imports = null, 
+    string header = "",
+    string file = __FILE__,
+    size_t line = __LINE__)
+{
+    return ShaderSource(source, imports, declarations, header, file, line);
+}

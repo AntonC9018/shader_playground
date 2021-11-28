@@ -31,8 +31,7 @@ struct Attribute
 
 alias A = TypeAliases!(Attribute, Uniforms);
 
-immutable string vertexShaderText = SHADER_HEADER 
-    ~ A.VertexDeclarations ~ q{
+immutable vertexSource = createShaderSource(q{
 
     out vec2 vTexCoord;
 
@@ -41,13 +40,10 @@ immutable string vertexShaderText = SHADER_HEADER
         gl_Position = uModelViewProjection * vec4(aPosition, 1.0);
         vTexCoord = aTexCoord;
     }
-};
 
-static import cloth;
+}, A.VertexDeclarations);
 
-immutable string fragmentShaderText = SHADER_HEADER
-    ~ A.FragmentDeclarations
-    ~ cloth.noiseText ~ q{
+immutable fragmentSource = createShaderSource(q{
 
     in vec2 vTexCoord;
     out vec4 fragColor;
@@ -76,7 +72,7 @@ immutable string fragmentShaderText = SHADER_HEADER
         }
         fragColor = vec4(color, 1);
     }
-};
+}, A.FragmentDeclarations, [importNoise]);
 
 
 class App : IApp, ITerminate
@@ -88,8 +84,8 @@ class App : IApp, ITerminate
 
     void setup()
     {
-        uniforms.load();
-        assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
+        load(uniforms);
+        assert(program.initialize(vertexSource, fragmentSource), "Shader program failed to initialize");
 
         squareModel = createModel(&program, makeSquare!Attribute);
         square = makeObject(&squareModel);

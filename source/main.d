@@ -4,11 +4,44 @@ void main(string[] args)
 {
     import shaderplayground.initialization : initialize, shutdown;
 
+
     // TODO: Load from dll. Should be pretty easy too.
-    import abstract_thing : App;
 
     initialize();
-    run([new App()]);
+    import std.stdio;
+    switch (args[1])
+    {
+        case "diagram": 
+        {
+            import diagram : App;
+            run([new App()]);
+            break;
+        }
+        case "cloth": 
+        {
+            import cloth : App;
+            run([new App()]);
+            break;
+        }
+        case "cloth2": 
+        {
+            import cloth2 : App;
+            run([new App()]);
+            break;
+        }
+        case "abstract": 
+        {
+            import abstract_thing : App;
+            run([new App()]);
+            break;
+        }
+        default: 
+        {
+            import app : App;
+            run([new App()]);
+            break;
+        }
+    }
     shutdown();
 }
 
@@ -62,6 +95,8 @@ void run(IApp[] apps)
     }
 
     foreach (a; apps)
-    if (auto t = cast(ITerminate) a)
-        t.terminate();
+    {
+        if (auto t = cast(ITerminate) a)
+            t.terminate();
+    }
 }

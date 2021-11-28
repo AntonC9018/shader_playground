@@ -50,11 +50,9 @@ immutable string vertexShaderText = SHADER_HEADER
     }
 };
 
-static import cloth;
-
 immutable string fragmentShaderText = SHADER_HEADER
     ~ A.FragmentDeclarations 
-    ~ cloth.noiseText ~ q{
+    ~ importNoise.source ~ q{
 
     in vec2 vTexCoord;
     out vec4 fragColor;
