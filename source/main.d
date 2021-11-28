@@ -12,7 +12,7 @@ void main(string[] args)
     shutdown();
 }
 
-import shaderplayground.app : IApp;
+import shaderplayground.userutils : IApp;
 
 void run(IApp[] apps)
 {
@@ -60,4 +60,8 @@ void run(IApp[] apps)
 		glfwMakeContextCurrent(g_Window);
 		glfwSwapBuffers(g_Window);
     }
+
+    foreach (a; apps)
+    if (auto t = cast(ITerminate) a)
+        t.terminate();
 }

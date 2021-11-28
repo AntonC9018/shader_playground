@@ -29,11 +29,10 @@ struct Attribute
     vec2 aTexCoord;
 }
 
-alias Model_t = Model!(Attribute, Uniforms);
-alias Object_t = shaderplayground.object.Object!(Attribute, Uniforms);
+alias A = TypeAliases!(Attribute, Uniforms);
 
 immutable string vertexShaderText = SHADER_HEADER 
-    ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
+    ~ A.VertexDeclarations ~ q{
 
     out vec2 vTexCoord;
 
@@ -47,7 +46,7 @@ immutable string vertexShaderText = SHADER_HEADER
 static import cloth;
 
 immutable string fragmentShaderText = SHADER_HEADER
-    ~ FragmentMarkedUniformDeclarations!Uniforms 
+    ~ A.FragmentDeclarations
     ~ cloth.noiseText ~ q{
 
     in vec2 vTexCoord;
@@ -80,29 +79,23 @@ immutable string fragmentShaderText = SHADER_HEADER
 };
 
 
-class App : IApp
+class App : IApp, ITerminate
 {
     Uniforms uniforms;
-    ShaderProgram!Uniforms program;
-    Model_t squareModel;
-    Object_t square;
+    A.ShaderProgram program;
+    A.Model squareModel;
+    A.Object square;
 
     void setup()
     {
-        program = ShaderProgram!Uniforms();
+        uniforms.load();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
         squareModel = createModel(&program, makeSquare!Attribute);
         square = makeObject(&squareModel);
     }
 
-    void loop(double dt)
-    {
-        square.draw(&uniforms);
-    }
-
-    void doImgui()
-    {
-        .doImgui(&uniforms);
-    }
+    void loop(double dt) { square.draw(&uniforms); }
+    void doImgui() { .doImgui(&uniforms); }
+    void terminate() { save(uniforms); }
 }

@@ -17,6 +17,8 @@ struct Range
     float b;
 }
 
+enum IsEditable(alias t) = is(typeof(t) == Range) || is(t == Edit) || is(t == Color);
+
 /// Whether to be included by default in the text of the corresponding shader type.
 enum Fragment;
 enum Vertex;
@@ -351,3 +353,131 @@ void setupIndexBuffer(ref IndexBuffer buffer, const ivec3[] data)
     buffer.bind();
     buffer.setData(data);
 }
+
+import std.json;
+import std.stdio;
+
+JSONValue uniformsToJson(T)(in T obj)
+{
+    JSONValue result;
+    static foreach (field; T.tupleof)
+    {
+        static foreach (attribute; __traits(getAttributes, field))
+        {
+            static if (IsEditable!attribute)
+            {
+                static if (__traits(hasMember, typeof(field), "arrayof"))
+                {
+                    result[__traits(identifier, field)] = JSONValue(__traits(child, obj, field).arrayof);
+                }
+                else static if (is(typeof(field) : double) || is(typeof(field) == bool)) 
+                {
+                    result[__traits(identifier, field)] = JSONValue(__traits(child, obj, field));
+                }
+                else static assert(0);
+            }
+        }
+    }
+    return result;
+}
+
+void uniformsFromJson(T)(JSONValue json, out T obj)
+{
+    if (json.type != JSONType.object)
+        return;
+
+    static foreach (field; T.tupleof)
+    {
+        if (auto p = __traits(identifier, field) in json)
+        {
+            static foreach (attribute; __traits(getAttributes, field))
+            {{
+                static if (IsEditable!attribute)
+                {
+                    try 
+                    {
+                        static if (__traits(hasMember, typeof(field), "arrayof"))
+                        {
+                            auto t = p.array();
+                            if (t.length == __traits(child, obj, field).arrayof.length)
+                            {
+                                foreach (index; 0 .. t.length)
+                                    __traits(child, obj, field).arrayof[index] = t[index].get!(typeof(field.arrayof[0]));
+                            }
+                        }
+                        else static if (is(typeof(field) : double) || is(typeof(field) == bool)) 
+                        {
+                            __traits(child, obj, field) = p.get!(typeof(field));
+                        }
+                        else static assert(0);
+                    }
+                    catch (JSONException exc)
+                    {
+                    }
+                }
+            }}
+        }
+    }
+}
+
+unittest
+{
+    struct U 
+    {
+        // Not serialized
+        int a = 0;
+        // Also not serialized
+        bool b = true;
+        
+        @Range(0, 1)    float c = 0.5;
+        @Edit           ivec2 d = ivec2(1, 2);
+        @Color          vec3 e = vec3(1, 0.2, 0.5);
+    }
+
+    static assert(__traits(compiles, { U u; doImgui(&u); }));
+
+    U u;
+    JSONValue v = uniformsToJson(u);
+
+    U u2;
+    uniformsFromJson(v, u2);
+
+    assert(u == u2);
+
+    // writeln(u);
+    // writeln(u2);
+}
+
+static import std.file;
+
+void writeUniforms(T)(in T uniforms, string filename)
+{
+    JSONValue j = uniformsToJson(uniforms);
+    std.file.write(filename, j.toPrettyString());
+}
+
+void tryReadUniforms(T)(out T uniforms, string filename)
+{
+    string jsonString;
+    try jsonString = std.file.readText(filename);
+    catch (Exception exc) {}
+    uniformsFromJson(parseJSON(jsonString), uniforms);
+}
+
+
+import std.traits : fullyQualifiedName;
+
+void save(T)(in T uniforms)
+{
+    enum name = fullyQualifiedName!T ~ ".json";
+    writeUniforms(uniforms, name);
+}
+
+void load(T)(out T uniforms)
+{
+    enum name = fullyQualifiedName!T ~ ".json";
+    tryReadUniforms(uniforms, name);
+}
+
+
+
