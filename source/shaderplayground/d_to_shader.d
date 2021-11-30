@@ -518,16 +518,15 @@ ShaderSource createShaderSource(
     string file = __FILE__,
     size_t line = __LINE__)
 {
+    // TODO: resolve imports
     return ShaderSource(source, imports, declarations, header, file, line);
 }
 
 ShaderSource createShaderImport(
     string source, 
-    string declarations = "", 
     const ShaderSource[] imports = null, 
-    string header = "",
     string file = __FILE__,
     size_t line = __LINE__)
 {
-    return ShaderSource(source, imports, declarations, header, file, line);
+    return ShaderSource(source, imports, "", "", file, line);
 }

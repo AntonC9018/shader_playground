@@ -31,7 +31,7 @@ struct Attribute
 
 alias A = TypeAliases!(Attribute, Uniforms);
 
-immutable vertexSource = createShaderSource(q{
+immutable vertexSource = A.vertexShaderSource(q{
 
     out vec2 vTexCoord;
 
@@ -41,9 +41,9 @@ immutable vertexSource = createShaderSource(q{
         vTexCoord = aTexCoord;
     }
 
-}, A.VertexDeclarations);
+});
 
-immutable fragmentSource = createShaderSource(q{
+immutable fragmentSource = A.fragmentShaderSource(q{
 
     in vec2 vTexCoord;
     out vec4 fragColor;
@@ -72,7 +72,7 @@ immutable fragmentSource = createShaderSource(q{
         }
         fragColor = vec4(color, 1);
     }
-}, A.FragmentDeclarations, [importNoise]);
+}, [importNoise]);
 
 
 class App : IApp, ITerminate
