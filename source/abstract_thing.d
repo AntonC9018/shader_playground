@@ -92,7 +92,7 @@ class App : IApp, ITerminate
 
     void loop(double dt)
     {
-        // square.draw(&program, &uniforms);
+        square.draw(&program, &uniforms);
     }
     void doImgui() { .doImgui(&uniforms); }
     void terminate() { save(uniforms); }
