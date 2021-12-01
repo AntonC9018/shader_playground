@@ -1,27 +1,14 @@
 module shaderplayground.initialization;
 
 import shaderplayground.logger;
-import shaderplayground.freeview;
-import shaderplayground.text;
 
 import bindbc.glfw;
 import bindbc.opengl;
 import imgui;
 public import ImguiImpl = imgui.glfw_impl;
 import dlib.math;
+import shaderplayground.globals;
 
-
-__gshared GLFWwindow* g_Window;
-__gshared FreeviewComponent g_Camera;
-__gshared TextDrawer g_TextDrawer;
-
-struct ScreenDimensions
-{
-    int width, height;
-    float ratio() { return cast(float) width / height; }
-}
-
-__gshared ScreenDimensions g_CurrentWindowDimensions;
 
 /// Loads GLFW, creates a window, sets it globally, Loads OpenGL 
 void initialize()
@@ -115,6 +102,7 @@ void initialize()
     
     static void setupCamera()
     {
+        import shaderplayground.freeview;
         g_Camera = new FreeviewComponent();
         
         // Must be a plain function pointer, which is actually a shame.

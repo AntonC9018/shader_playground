@@ -19,7 +19,7 @@ struct ModelData(TAttribute)
 
 void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 {
-    import shaderplayground.initialization : g_Camera;
+    import shaderplayground.globals : g_Camera;
 
     mat4 projection = g_Camera.projection();
     mat4 view       = g_Camera.invTransform;

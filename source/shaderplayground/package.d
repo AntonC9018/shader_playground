@@ -13,6 +13,7 @@ import shaderplayground.userutils;
 import shaderplayground.text;
 import shaderplayground.texture;
 import shaderplayground.common;
+import shaderplayground.globals;
 
 import imgui;
 import bindbc.opengl;

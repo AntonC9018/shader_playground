@@ -52,6 +52,7 @@ void main(string[] args)
 }
 
 import shaderplayground.userutils : IApp;
+import shaderplayground.globals;
 
 void run(IApp[] apps)
 {
@@ -86,14 +87,8 @@ void run(IApp[] apps)
                 // else
                 //     path = buildPath(absoluteNormalizedWatchedPath, name);
                 // assert(asNormalizedPath(path).array == path);
-
-                foreach (a; apps)
-                {
-                    if (auto h = cast(IProcessSourceFileModifiedEvent) a)
-                    {
-                        h.processSourceFileModifiedEvent(path);
-                    }
-                }
+                
+                g_SourceFilesHotreloadProvider.fileModified(path);
             }
         }
         return true;

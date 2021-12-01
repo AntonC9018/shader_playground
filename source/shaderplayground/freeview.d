@@ -40,6 +40,7 @@ import dlib.math.utils;
 
 import shaderplayground.input;
 
+import shaderplayground.globals : g_CurrentWindowDimensions, g_Window;
 
 class FreeviewComponent
 {
@@ -133,7 +134,6 @@ class FreeviewComponent
 
     final void update(float time)
     {
-        import shaderplayground.initialization : g_Window;
         import bindbc.glfw;
 
         if (active)
@@ -362,7 +362,6 @@ class FreeviewComponent
 
     final auto projection()
     {
-        import shaderplayground.initialization : g_CurrentWindowDimensions;
         auto ratio = g_CurrentWindowDimensions.ratio;
         return perspectiveMatrix(fov, ratio, 0.1f, 100.0f);
     }

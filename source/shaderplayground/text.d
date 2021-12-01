@@ -285,7 +285,7 @@ struct TextObject
 
     void draw()
     {
-        import shaderplayground.initialization : g_TextDrawer;
+        import shaderplayground.globals : g_TextDrawer;
         // TODO: draw onto a texture, store the texture, then just redraw the texture here
         g_TextDrawer.drawLines(text, alignment, maxCharactersPerLine, transform);
     }

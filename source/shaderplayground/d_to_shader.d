@@ -1,5 +1,6 @@
 module shaderplayground.d_to_shader;
 
+public import shaderplayground.shaderloader : ShaderStage;
 import shaderplayground.shadercommon;
 import imgui;
 
@@ -279,6 +280,27 @@ void doImgui(TUniforms)(TUniforms* uniforms)
     }}
 }
 
+void setUniforms(TUniforms)(ref UniformInfo!TUniforms infos, TUniforms* uniforms)
+{
+    uint textureUnitIndex = 0;
+    static foreach (field; TUniforms.tupleof)
+    {{
+        enum string name = __traits(identifier, field);
+        import shaderplayground.texture;
+
+        static if (is(typeof(field) == Texture2D) || is(typeof(field) == CubeMap))
+        {
+            __traits(getMember, infos, name).set(__traits(child, uniforms, field), textureUnitIndex);
+            textureUnitIndex++;
+        }
+        else
+        {
+            __traits(getMember, infos, name).set(__traits(child, uniforms, field));
+        }
+    }}
+}
+
+
 struct ShaderProgram(TUniforms)
 {
     import std.range;
@@ -292,22 +314,7 @@ struct ShaderProgram(TUniforms)
 
     void setUniforms(TUniforms* uniforms)
     {
-        uint textureUnitIndex = 0;
-        static foreach (field; TUniforms.tupleof)
-        {{
-            enum string name = __traits(identifier, field);
-            import shaderplayground.texture;
-
-            static if (is(typeof(field) == Texture2D) || is(typeof(field) == CubeMap))
-            {
-                __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field), textureUnitIndex);
-                textureUnitIndex++;
-            }
-            else
-            {
-                __traits(getMember, uniformInfos, name).set(__traits(child, uniforms, field));
-            }
-        }}
+        .setUniforms(uniformInfos, uniforms);
     }
 
     bool initialize(S)(in S vertexSource, in S fragmentSource)
@@ -496,14 +503,15 @@ struct ShaderSource
     string file;
     size_t line;
     
-    string deducedDeclarations;
+    ShaderStage stage;   
+    string declarations;
     string header;
     
     const:
     string text()
     {
         string result = header;
-        result ~= deducedDeclarations;
+        result ~= declarations;
         foreach (i; imports)
             result ~= i.text();
         result ~= source;
@@ -529,159 +537,215 @@ struct ShaderImport
     }
 }
 
+
 ShaderSource createShaderSource(
-    string source, 
-    string declarations = "", 
-    const (ShaderImport*)[] imports = null, 
+    string source,
+    ShaderStage stage,
+    string declarations = "",
+    const (ShaderImport*)[] imports = null,
     string header = SHADER_HEADER,
     string file = __FILE_FULL_PATH__,
     size_t line = __LINE__)
 {
-    // TODO: resolve imports
-    return ShaderSource(source, imports, file, line, declarations, header);
+    ShaderSource result;
+
+    import std.string : replace;
+    result.source = source.replace("\r\n", "\n");
+    result.stage = stage;
+    result.declarations = declarations;
+    result.imports = imports;
+    result.header = header;
+    result.file = file;
+    result.line = line;
+
+    return result;
 }
 
 ShaderImport createShaderImport(
-    string source, 
-    const ShaderImport*[] imports = null, 
+    string source,
+    const ShaderImport*[] imports = null,
     string file = __FILE_FULL_PATH__,
     size_t line = __LINE__)
 {
-    return ShaderImport(source, imports, file, line);
+    import std.string : replace;
+    return ShaderImport(source.replace("\r\n", "\n"), imports, file, line);
 }
 
-
-struct HotreloadShaderProgram
+private struct SourceInfo
 {
-    import shaderplayground.shaderloader;
+    ShaderSource source;
+    string declarationString;
+    uint id;
+    void delegate(in SourceFilesHotreloadProvider, uint indexChanged)[] changedSubscribers;
+
+    bool isCompiled() { return id != cast(uint) -1; }
+}
+
+// I might be overcomplicating this.
+struct SourceFilesHotreloadProvider
+{
     import std.algorithm;
     import std.string;
     import std.range;
-    import std.path;
-    import std.file;
     import std.array;
-    
-    ShaderSource[cast(size_t) ShaderStage.max + 1] sources;
-    string [cast(size_t) ShaderStage.max + 1] declarationString;
 
-    void dg()
+    SourceInfo[] shaderSourceInfos;
+
+    // uint addOrFindShaderSource(in ShaderSource source)
+    // {
+    //     foreach (ref info; shaderSourceInfos)
+    //     {
+    //         if (source.file == info.source.file && 
+    //     }
+    // }
+
+    uint addShaderSource(ShaderSource source)
     {
-        foreach (index, ref source; sources)
-        {
-            if (source.file != null)
-            {
-                writeln("File ", source.file, " line ", source.line);
-                auto file = File(source.file, "r");
-                scope(exit) file.close();
-                auto lines = file.byLine().drop(source.line - 1);
+        // The file must exist
+        assert(source.file != null, source.file);
 
-                // We'll be doing the hotreload relative to this declaration.
-                assert(lines.front.chomp[$ - 2 .. $] == "q{", 
-                    "Please use token strings with the hotreload feature.");
-                declarationString[index] = lines.front.idup;
-                lines.popFront();
+        SourceInfo info;
+        info.source = source;
+        
+        auto file = File(source.file, "r");
+        scope(exit) file.close();
+        auto lines = file.byLine().drop(source.line - 1);
 
-                int numParens = 0;
-                auto buffer = appender!string;
+        // We'll be doing the hotreload relative to this declaration.
+        assert(lines.front.chomp[$ - 2 .. $] == "q{", 
+            "Please use token strings with the hotreload feature.");
+        info.declarationString = lines.front.idup;
 
-                outer: foreach (line; lines)
-                {
-                    foreach (ch; line)
-                    {
-                        switch (ch)
-                        {
-                            case '{':
-                                numParens++;
-                                goto default;
-                            case '}':
-                                numParens--;
-                                if (numParens < 0)
-                                    break outer;
-                                goto default;
-                            default:
-                                buffer ~= ch;
-                                continue;
-                        }
-                    }
-                    buffer ~= "\n";
-                }
-                writeln(buffer[]);
-            }
-        }
+        shaderSourceInfos ~= info;
+
+        recompileShaderSource(&info);
+
+        return cast(uint) shaderSourceInfos.length - 1;
     }
 
-    void fileChanged(string fullNormalizedPath)
+    void recompileShaderSource(SourceInfo* info)
     {
-        size_t index = sources[].countUntil!((ref s) => s.file == fullNormalizedPath);
-        if (index >= sources.length)
+        writeln(info.source.source);
+        writeln(info.source.source.length);
+        writeln("Recompiling ", info.source.file);
+        info.id = 0;
+    }
+
+    void fileModified(string fullNormalizedPath)
+    {
+        foreach (index, ref info; shaderSourceInfos)
         {
-            writeln("Unwatched file changed. ", fullNormalizedPath);
-            return;
-        }
-
-        auto file = File(fullNormalizedPath, "r");
-        scope(exit) file.close();
-        auto lines = file.byLine();
-
-        if (lines.empty)
-            return;
-
-        // findSkip cannot deduce arguments
-        while (true)
-        {
-            auto front = lines.front;
-            lines.popFront();
-
-            if (front == declarationString[index])
-                break;
-            
-            if (!lines.empty)
+            if (info.source.file != fullNormalizedPath)
                 continue;
 
-            // TODO: maybe only the declaration changed while the line is the same
-            writeln("Please do not modify the declaration of the watched source. ", fullNormalizedPath);
-            return;
-        }
+            auto file = File(fullNormalizedPath, "r");
+            scope(exit) file.close();
+            auto lines = file.byLine();
 
-        int numParens = 0;
-        auto buffer = appender!string;
+            if (lines.empty)
+                continue;
 
-        outer: foreach (line; lines)
-        {
-            foreach (ch; line)
+            size_t lineCountUntilSource = 0;
+            // findSkip cannot deduce arguments
+            while (true)
             {
-                switch (ch)
-                {
-                    case '{':
-                        numParens++;
-                        goto default;
-                    case '}':
-                        numParens--;
-                        if (numParens < 0)
-                            break outer;
-                        goto default;
-                    default:
-                        buffer ~= ch;
-                        continue;
-                }
+                auto front = lines.front;
+                lines.popFront();
+
+                if (front == info.declarationString)
+                    break;
+                
+                lineCountUntilSource++;
+                
+                if (!lines.empty)
+                    continue;
+
+                // TODO: maybe only the declaration changed while the line is the same
+                writeln("Please do not modify the declaration of the watched source. ", fullNormalizedPath);
+                return;
             }
-            buffer ~= "\n";
+            info.source.line = lineCountUntilSource;
+
+            int numParens = 0;
+            auto buffer = appender!string;
+            buffer ~= '\n';
+
+            outer: foreach (line; lines)
+            {
+                foreach (ch; line)
+                {
+                    switch (ch)
+                    {
+                        case '{':
+                            numParens++;
+                            goto default;
+                        case '}':
+                            numParens--;
+                            if (numParens < 0)
+                                break outer;
+                            goto default;
+                        default:
+                            buffer ~= ch;
+                            continue;
+                    }
+                }
+                buffer ~= "\n";
+            }
+
+            string newText = buffer[];
+
+            if (newText != info.source.source)
+            {
+                writeln("Source changed. ", fullNormalizedPath);
+                info.source.source = newText;
+                recompileShaderSource(&info);
+
+                foreach (s; info.changedSubscribers)
+                    s(this, cast(uint) index);
+            }
         }
-
-        string newText = buffer[];
-
-        if (newText != sources[index].source)
-        {
-            writeln("Source changed. ", fullNormalizedPath);
-            sources[index].source = newText;
-
-            // reload.
-        }
-    }
-
-    bool hasShaderForStage(ShaderStage stage)
-    {
-        return sources[cast(size_t) stage].file != null;
     }
 }
 
+
+class HotreloadShaderProgram(TUniforms)
+{
+    import shaderplayground.shaderloader;
+    import std.algorithm;
+
+    UniformInfo!TUniforms uniformInfos;
+    // Indices into the provider's 
+    uint[] shaderSourceIndices;
+    uint id = cast(uint) -1;
+
+    bool isPrimed() { return id != cast(uint) -1; }
+
+    void addSource(SourceFilesHotreloadProvider* provider, uint shaderSourceIndex)
+    {
+        shaderSourceIndices ~= shaderSourceIndex;
+        provider.shaderSourceInfos[shaderSourceIndex].changedSubscribers ~= &recompile;
+    }
+
+    private void recompile(in SourceFilesHotreloadProvider provider, uint indexChanged)
+    {
+        size_t indexOfChangedShaderSource = shaderSourceIndices.countUntil(indexChanged);
+        assert(indexOfChangedShaderSource < shaderSourceIndices.length, 
+            "This means we have added the callback to a wrong thing.");
+        linkProgram(provider);
+    }
+
+    void linkProgram(in SourceFilesHotreloadProvider provider)
+    {
+        writeln("Linking ");
+    }
+}
+
+
+
+uint addSourcesGlobally(T)(ref T program, ShaderSource source)
+{
+    import shaderplayground.globals : g_SourceFilesHotreloadProvider;
+    uint id = g_SourceFilesHotreloadProvider.addShaderSource(source);
+    program.addSource(&g_SourceFilesHotreloadProvider, id);
+    return id;
+}

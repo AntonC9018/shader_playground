@@ -75,15 +75,15 @@ immutable fragmentSource = A.fragmentShaderSource(q{
 }, [&importNoise]);
 
 
-class App : IApp, ITerminate, IProcessSourceFileModifiedEvent
+class App : IApp, ITerminate
 {
     Uniforms uniforms;
     A.ShaderProgram program;
     A.Model squareModel;
     A.Object square;
 
-    HotreloadShaderProgram p;
-
+    HotreloadShaderProgram!Uniforms p;
+    
     void setup()
     {
         load(uniforms);
@@ -92,14 +92,16 @@ class App : IApp, ITerminate, IProcessSourceFileModifiedEvent
         squareModel = createModel(&program, makeSquare!Attribute);
         square = makeObject(&squareModel);
 
-        import shaderplayground.shaderloader;
-        p.sources[cast(size_t) ShaderStage.vertex] = vertexSource;
-        p.sources[cast(size_t) ShaderStage.fragment] = fragmentSource;
-        p.dg();
+        // TODO: not redo if the program is already initialized.
+        if (p is null)
+        {
+            p = new HotreloadShaderProgram!Uniforms();
+            addSourcesGlobally(p,vertexSource);
+            addSourcesGlobally(p, fragmentSource);
+        }
     }
 
-    void processSourceFileModifiedEvent(string fullNormalizedPath) { p.fileChanged(fullNormalizedPath); }
-    void loop(double dt) 
+    void loop(double dt)
     { 
         square.draw(&uniforms);
     }

@@ -1,7 +1,7 @@
 module shaderplayground.input;
 import dlib.math;
 import bindbc.glfw;
-import shaderplayground.initialization : g_Window;
+import shaderplayground.globals : g_Window;
 
 Vector2d getMousePosition()
 {

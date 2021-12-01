@@ -1,5 +1,7 @@
 module shaderplayground.userutils;
 
+import shaderplayground.globals;
+
 interface IApp
 {
     void setup();
@@ -57,14 +59,42 @@ template TypeAliases(TAttribute, TUniforms)
 
     ShaderSource vertexShaderSource(string shaderText, const ShaderImport*[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
     {
-        return createShaderSource(shaderText, VertexDeclarations, imports, SHADER_HEADER, file, line);
+        return createShaderSource(shaderText, ShaderStage.vertex, VertexDeclarations, imports, SHADER_HEADER, file, line);
     }
 
     ShaderSource fragmentShaderSource(string shaderText, const ShaderImport*[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
     {
-        return createShaderSource(shaderText, FragmentDeclarations, imports, SHADER_HEADER, file, line);
+        return createShaderSource(shaderText, ShaderStage.fragment, FragmentDeclarations, imports, SHADER_HEADER, file, line);
     }
 }
+
+
+template WrapApp(T)
+{
+    import std.traits;
+
+    alias interfaces = AliasSeq!();
+    static if (__traits(hasMember, T, "terminate"))
+        interfaces = AliasSeq!(interfaces, ITerminate);
+    else static if (__traits(hasMember, T, "processSourceFileModifiedEvent"))
+        interfaces = AliasSeq!(interfaces, IProcessSourceFileModifiedEvent);
+
+    class WrapApp : IApp, interfaces
+    {
+        T t;
+        this() { t = T(); }
+        static if (__traits(hasMember, T, "setup"))
+            void setup() { t.setup(); } 
+        static if (__traits(hasMember, T, "loop"))
+            void loop(double dt) { t.loop(dt); }
+        static if (__traits(hasMember, T, "doImgui"))
+            void doImgui() { t.doImgui(); }
+        static if (__traits(hasMember, T, "terminate"))
+            void terminate() { t.terminate(); }
+        static if (__traits(hasMember, T, "processSourceFileModifiedEvent"))
+            void processSourceFileModifiedEvent(string fullNormalizedPath) { t.processSourceFileModifiedEvent(fullNormalizedPath); }
+    }
+} 
 
 import shaderplayground.d_to_shader : createShaderImport;
 
