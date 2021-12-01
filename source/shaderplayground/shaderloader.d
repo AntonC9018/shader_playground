@@ -73,18 +73,14 @@ import shaderplayground.shadercommon;
 /// Compile single shader from source
 GLuint compileShader(string source, const ShaderStage stage)
 {
-    errors("shad 0");
     // create a shader
     GLuint shaderId = glCreateShader(shaderStageToGLenum(stage));
 
-    errors("shad 1");
     // compile the shader
     const char* csource = source.ptr;
     GLint length = cast(GLint) source.length;
     glShaderSource(shaderId, 1, &csource, &length);
-    errors("shad 2");
     glCompileShader(shaderId);
-    errors("shad 3");
 
     // check the shader
     if (!checkCompilation(shaderId))
@@ -92,7 +88,6 @@ GLuint compileShader(string source, const ShaderStage stage)
         shaderId = 0;
         glDeleteShader(shaderId);
     }
-    errors("shad 4");
 
     return shaderId;
 }
@@ -102,18 +97,15 @@ GLuint linkShaders(const GLuint[] shaderIds...)
 {
     // create and link program
     GLuint programId = glCreateProgram();
-    errors("prog 1");
     foreach (sh; shaderIds)
         glAttachShader(programId, sh);
     glLinkProgram(programId);
-    errors("prog 2");
 
     // check the program
     if (!checkLinking(programId))
     {
         programId = 0;
         glDeleteProgram(programId);
-    errors("prog 3");
     }
 
     // delete the program parts
@@ -121,10 +113,8 @@ GLuint linkShaders(const GLuint[] shaderIds...)
     {
         glDetachShader(programId, sh);
         glDeleteShader(sh);
-    errors("prog 4 ");
     }
 
-    errors("prog 5");
     return programId;
 }
 

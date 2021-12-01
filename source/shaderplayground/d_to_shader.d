@@ -320,7 +320,6 @@ struct ShaderProgram(TUniforms)
     bool initialize(S)(in S vertexSource, in S fragmentSource)
     {
         import shaderplayground.shaderloader;
-		errors("initialize");
 
         string[2] sources;
         // This has way more info.
@@ -496,6 +495,9 @@ void load(T)(out T uniforms)
 }
 
 
+import std.algorithm;
+import std.range;
+
 struct ShaderSource
 {
     string source;
@@ -517,6 +519,11 @@ struct ShaderSource
         result ~= source;
         return result;
     }
+
+    size_t getLineCountBeforeSource()
+    {
+        return imports.map!`a.getLineCountBeforeSource()`.fold!`a + b`(0UL) + 1 + declarations.count('\n');
+    }
 }
 
 struct ShaderImport
@@ -534,6 +541,11 @@ struct ShaderImport
             result ~= i.text();
         result ~= source;
         return result;
+    }
+
+    size_t getLineCountBeforeSource()
+    {
+        return imports.map!`a.getLineCountBeforeSource()`.fold!`a + b`(0UL) + source.count('\n');
     }
 }
 
@@ -637,6 +649,44 @@ struct SourceFilesHotreloadProvider
 
         LogBuffer buffer;
         auto log = getCompilationLog(buffer, info.id);
+        
+        if (log.length > 0)
+            writeln(log);
+
+        foreach (line; log.splitter("\n"))
+        {
+            if (!startsWith(line, "0("))
+                continue;
+
+            auto numberString = line[2 .. 2 + countUntil(line[2..$], ')')];
+            writeln(numberString);
+            size_t number = to!size_t(numberString);
+            writeln(number);
+            size_t actualNumber = number - info.source.getLineCountBeforeSource() + info.source.line - 1;
+            writeln(actualNumber);
+
+            // count digits and add that to index
+            size_t index = 2;
+            size_t a = actualNumber;
+            while (a > 0)
+            {
+                a /= 10;
+                index++;
+            }
+
+            line[index] = ')';
+            if (line[index + 2] != ':')
+                line[index + 1] = ':';
+
+            a = actualNumber;
+            while (a > 0)
+            {
+                index--;
+                line[index] = a % 10 + '0';
+                a /= 10;
+            }
+        }
+
         if (log.length > 0)
             writeln(log);
     }
@@ -718,7 +768,7 @@ struct SourceFilesHotreloadProvider
 }
 
 
-class HotreloadShaderProgram(TUniforms)
+struct HotreloadShaderProgram(TUniforms)
 {
     import shaderplayground.shaderloader;
     import std.algorithm;
@@ -727,19 +777,11 @@ class HotreloadShaderProgram(TUniforms)
     // Indices into the provider's 
     uint[] shaderSourceIndices;
     uint id = cast(uint) -1;
-    bool isLinked;
 
     void delegate(HotreloadShaderProgram program)[] programRelinkedCallbacks;
 
-    this() { id = glCreateProgram(); }
-
-    void addSource(SourceFilesHotreloadProvider* provider, uint shaderSourceIndex)
-    {
-        shaderSourceIndices ~= shaderSourceIndex;
-        auto info = &provider.shaderSourceInfos[shaderSourceIndex];
-        info.changedSubscribers ~= &recompile;
-        glAttachShader(id, info.id);
-    }
+    bool isPrimed() { return id != cast(uint) -1; }
+    void initialize() { id = glCreateProgram(); }
 
     private void recompile(in SourceFilesHotreloadProvider provider, uint indexChanged)
     {
@@ -788,13 +830,38 @@ class HotreloadShaderProgram(TUniforms)
     }
 }
 
+void addSource(Program)(ref Program shaderProgram, 
+    SourceFilesHotreloadProvider* provider, uint shaderSourceIndex)
+{
+    shaderProgram.shaderSourceIndices ~= shaderSourceIndex;
+    auto info = &provider.shaderSourceInfos[shaderSourceIndex];
+    auto p = &shaderProgram;
+    provider.shaderSourceInfos[shaderSourceIndex].changedSubscribers ~= &p.recompile;
+    glAttachShader(shaderProgram.id, info.id);
+}
 
+void addSourcesGlobally(T)(ref T program, ShaderSource[] sources...)
+{
+    foreach (s; sources)
+        addSourcesGlobally(program, s);
+}
 
 uint addSourcesGlobally(T)(ref T program, ShaderSource source)
 {
     import shaderplayground.globals : g_SourceFilesHotreloadProvider;
     uint index = g_SourceFilesHotreloadProvider.addShaderSource(source);
-    program.addSource(&g_SourceFilesHotreloadProvider, index);
-    errors("glob 2");
+    addSource(program, &g_SourceFilesHotreloadProvider, index);
     return g_SourceFilesHotreloadProvider.shaderSourceInfos[index].id;
+}
+
+bool reinitializeHotloadShaderProgram(T)(ref T program, ShaderSource[] sources...)
+{
+    if (!program.isPrimed)
+    {
+        program.initialize();
+        addSourcesGlobally(program, sources);
+        program.linkProgram();
+        return true;
+    }
+    return false;
 }

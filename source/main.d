@@ -79,7 +79,6 @@ void run(IApp[] apps)
     {
         foreach (event; watcher.getEvents())
         {
-            writeln(event);
             if (event.type == FileChangeEventType.modify)
             {
                 string path = buildNormalizedPath(absoluteNormalizedWatchedPath, event.path);

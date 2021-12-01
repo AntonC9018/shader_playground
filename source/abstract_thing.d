@@ -46,9 +46,9 @@ immutable vertexSource = A.vertexShaderSource(q{
 immutable fragmentSource = A.fragmentShaderSource(q{
 
     in vec2 vTexCoord;
-    out vec4 fragColor;
+    out vec4 fragColor; 
 
-    void main() 
+    void main()
     {
         vec2 sampledPoint = vTexCoord * uLocality;
         // sampledPoint.x /= uHairLength;
@@ -78,32 +78,21 @@ immutable fragmentSource = A.fragmentShaderSource(q{
 class App : IApp, ITerminate
 {
     Uniforms uniforms;
-    HotreloadShaderProgram!Uniforms p;
+    HotreloadShaderProgram!Uniforms program;
     A.Model squareModel;
     A.Object square;
-
     
     void setup()
     {
         load(uniforms);
-        if (p is null)
-        {
-            p = new HotreloadShaderProgram!Uniforms();
-            errors("After create");
-            addSourcesGlobally(p, vertexSource);
-            errors("After vertex");
-            addSourcesGlobally(p, fragmentSource);
-            errors("After fragment");
-            p.linkProgram();
-            errors("After link");
-        }
-        squareModel = createModel(makeSquare!Attribute, p.id);
+        reinitializeHotloadShaderProgram(program, vertexSource, fragmentSource);
+        squareModel = createModel(makeSquare!Attribute, program.id);
         square = makeObject(&squareModel);
     }
 
     void loop(double dt)
-    { 
-        square.draw(&p, &uniforms);
+    {
+        // square.draw(&program, &uniforms);
     }
     void doImgui() { .doImgui(&uniforms); }
     void terminate() { save(uniforms); }

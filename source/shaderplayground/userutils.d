@@ -76,8 +76,8 @@ template WrapApp(T)
     alias interfaces = AliasSeq!();
     static if (__traits(hasMember, T, "terminate"))
         interfaces = AliasSeq!(interfaces, ITerminate);
-    else static if (__traits(hasMember, T, "processSourceFileModifiedEvent"))
-        interfaces = AliasSeq!(interfaces, IProcessSourceFileModifiedEvent);
+    // else static if (__traits(hasMember, T, "processSourceFileModifiedEvent"))
+    //     interfaces = AliasSeq!(interfaces, IProcessSourceFileModifiedEvent);
 
     class WrapApp : IApp, interfaces
     {

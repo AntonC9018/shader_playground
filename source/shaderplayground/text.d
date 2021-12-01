@@ -177,7 +177,6 @@ struct TextDrawer
         import arsd.bmp;
 
         program = ShaderProgram!TextUniforms();
-        errors("Before text");
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
         auto fontBitmap = cast(TrueColorImage) readBmp(getAssetPath("bmp_fonts/consolas.bmp"));
         fontBitmapMetadata = FontBitmapMetadata(fontBitmap);
