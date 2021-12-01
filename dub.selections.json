@@ -3,6 +3,7 @@
 	"versions": {
 		"bindbc-glfw": "1.0.0",
 		"bindbc-loader": "1.0.1",
-		"bindbc-opengl": "1.0.0"
+		"bindbc-opengl": "1.0.0",
+		"fswatch": "0.6.0"
 	}
 }

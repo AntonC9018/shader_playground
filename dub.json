@@ -2,29 +2,6 @@
 	"authors": [
 		"Anton"
 	],
-	
-	"license": "MIT",
-	"name": "shaders_test",
-	"targetPath": "bin",
-	"targetType": "executable",
-	"versions": [
-		"GLFW_33",
-		"GL_46"
-	],
-	"workingDirectory": "bin",
-	"dependencies": {
-		"bindbc-glfw": "~>1.0.0",
-		"bindbc-opengl": "~>1.0.0"
-	},
-	"lflags-windows": [
-		"/LIBPATH:bin",
-		"/NODEFAULTLIB:libcmt",
-		"/NODEFAULTLIB:libvcruntime",
-		"/NODEFAULTLIB:libucrt"
-	],
-	"libs": [
-		"lib/imgui"
-	],
 	"configurations": [
 		{
 			"name": "default",
@@ -32,7 +9,8 @@
 		},
 		{
 			"name": "unittest",
-			"targetName": "shaders_test-test-library"
+			"targetName": "shaders_test-test-library",
+			"targetType": "executable"
 		},
 		{
 			"dflags": [
@@ -44,5 +22,28 @@
 			],
 			"targetType": "executable"
 		}
-	]
+	],
+	"dependencies": {
+		"bindbc-glfw": "~>1.0.0",
+		"bindbc-opengl": "~>1.0.0",
+		"fswatch": "~>0.6.0"
+	},
+	"lflags-windows": [
+		"/LIBPATH:bin",
+		"/NODEFAULTLIB:libcmt",
+		"/NODEFAULTLIB:libvcruntime",
+		"/NODEFAULTLIB:libucrt"
+	],
+	"libs": [
+		"lib/imgui"
+	],
+	"license": "MIT",
+	"name": "shaders_test",
+	"targetPath": "bin",
+	"targetType": "executable",
+	"versions": [
+		"GLFW_33",
+		"GL_46"
+	],
+	"workingDirectory": "bin"
 }

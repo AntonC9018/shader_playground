@@ -17,3 +17,56 @@ auto ok_result(T)(T value)
 {
     return Result!(T)(value, null);
 } 
+
+
+
+
+
+
+
+    import fswatch;
+    static import std.file;
+    bool recursive = true;
+    auto watcher = FileWatch("../source/", recursive);
+    string initialContent = std.file.readText("../source/abstract_thing.d"); 
+
+    // This will fetch all queued events or an empty array if there are none
+        foreach (event; watcher.getEvents())
+        {
+            // paths are relative to the watched directory in most cases
+            if (event.path == "abstract_thing.d")
+            {
+                if (event.type == FileChangeEventType.modify)
+                {
+                    import std.stdio;
+                    import std.algorithm.comparison;
+                    string newContent = std.file.readText("../source/abstract_thing.d");
+                    struct Location { size_t line; size_t column; }
+                    Location locationOfChange = { 
+                        Location location;
+                        location.line = 1;
+                        location.column = 1;
+
+                        foreach (immutable i; 0 .. min(newContent.length, initialContent.length))
+                        {
+                            if (newContent[i] != initialContent[i])
+                                return location;
+
+                            location.column++;
+                            if (newContent[i] == '\n')
+                            {
+                                location.column = 1;
+                                location.line++;
+                            }
+                        }
+                        return Location(-1, -1);
+                    }();
+                    writeln("File ", event.path, " has changed at ", locationOfChange, " at time ", time, " \nevent type: ", event.type);
+                    initialContent = newContent;
+                }
+            }
+            if (event.type == FileChangeEventType.rename)
+            {
+                // The file `event.path` has been removed to `event.newPath`
+            }
+        }

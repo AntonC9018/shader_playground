@@ -37,12 +37,12 @@ import shaderplayground.logger;
 
 enum ShaderStage: ubyte
 {
-    vertex = 1,
-    tessControl = 2,
-    tessEval = 4,
-    geometry = 8,
-    fragment = 16,
-    compute = 32
+    vertex = 0,
+    tessControl = 1,
+    tessEval = 2,
+    geometry = 3,
+    fragment = 4,
+    compute = 5
 }
 
 private GLenum shaderStageToGLenum(ShaderStage stage)

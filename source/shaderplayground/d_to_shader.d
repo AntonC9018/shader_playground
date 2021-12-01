@@ -492,11 +492,12 @@ void load(T)(out T uniforms)
 struct ShaderSource
 {
     string source;
-    const ShaderSource[] imports;
-    string deducedDeclarations;
-    string header;
+    const (ShaderImport*)[] imports;
     string file;
     size_t line;
+    
+    string deducedDeclarations;
+    string header;
     
     const:
     string text()
@@ -510,23 +511,177 @@ struct ShaderSource
     }
 }
 
+struct ShaderImport
+{
+    string source;
+    const (ShaderImport*)[] imports;
+    string file;
+    size_t line;
+
+    const:
+    string text()
+    {
+        string result = "";
+        foreach (i; imports)
+            result ~= i.text();
+        result ~= source;
+        return result;
+    }
+}
+
 ShaderSource createShaderSource(
     string source, 
     string declarations = "", 
-    const ShaderSource[] imports = null, 
+    const (ShaderImport*)[] imports = null, 
     string header = SHADER_HEADER,
-    string file = __FILE__,
+    string file = __FILE_FULL_PATH__,
     size_t line = __LINE__)
 {
     // TODO: resolve imports
-    return ShaderSource(source, imports, declarations, header, file, line);
+    return ShaderSource(source, imports, file, line, declarations, header);
 }
 
-ShaderSource createShaderImport(
+ShaderImport createShaderImport(
     string source, 
-    const ShaderSource[] imports = null, 
-    string file = __FILE__,
+    const ShaderImport*[] imports = null, 
+    string file = __FILE_FULL_PATH__,
     size_t line = __LINE__)
 {
-    return ShaderSource(source, imports, "", "", file, line);
+    return ShaderImport(source, imports, file, line);
 }
+
+
+struct HotreloadShaderProgram
+{
+    import shaderplayground.shaderloader;
+    import std.algorithm;
+    import std.string;
+    import std.range;
+    import std.path;
+    import std.file;
+    import std.array;
+    
+    ShaderSource[cast(size_t) ShaderStage.max + 1] sources;
+    string [cast(size_t) ShaderStage.max + 1] declarationString;
+
+    void dg()
+    {
+        foreach (index, ref source; sources)
+        {
+            if (source.file != null)
+            {
+                writeln("File ", source.file, " line ", source.line);
+                auto file = File(source.file, "r");
+                scope(exit) file.close();
+                auto lines = file.byLine().drop(source.line - 1);
+
+                // We'll be doing the hotreload relative to this declaration.
+                assert(lines.front.chomp[$ - 2 .. $] == "q{", 
+                    "Please use token strings with the hotreload feature.");
+                declarationString[index] = lines.front.idup;
+                lines.popFront();
+
+                int numParens = 0;
+                auto buffer = appender!string;
+
+                outer: foreach (line; lines)
+                {
+                    foreach (ch; line)
+                    {
+                        switch (ch)
+                        {
+                            case '{':
+                                numParens++;
+                                goto default;
+                            case '}':
+                                numParens--;
+                                if (numParens < 0)
+                                    break outer;
+                                goto default;
+                            default:
+                                buffer ~= ch;
+                                continue;
+                        }
+                    }
+                    buffer ~= "\n";
+                }
+                writeln(buffer[]);
+            }
+        }
+    }
+
+    void fileChanged(string fullNormalizedPath)
+    {
+        size_t index = sources[].countUntil!((ref s) => s.file == fullNormalizedPath);
+        if (index >= sources.length)
+        {
+            writeln("Unwatched file changed. ", fullNormalizedPath);
+            return;
+        }
+
+        auto file = File(fullNormalizedPath, "r");
+        scope(exit) file.close();
+        auto lines = file.byLine();
+
+        if (lines.empty)
+            return;
+
+        // findSkip cannot deduce arguments
+        while (true)
+        {
+            auto front = lines.front;
+            lines.popFront();
+
+            if (front == declarationString[index])
+                break;
+            
+            if (!lines.empty)
+                continue;
+
+            // TODO: maybe only the declaration changed while the line is the same
+            writeln("Please do not modify the declaration of the watched source. ", fullNormalizedPath);
+            return;
+        }
+
+        int numParens = 0;
+        auto buffer = appender!string;
+
+        outer: foreach (line; lines)
+        {
+            foreach (ch; line)
+            {
+                switch (ch)
+                {
+                    case '{':
+                        numParens++;
+                        goto default;
+                    case '}':
+                        numParens--;
+                        if (numParens < 0)
+                            break outer;
+                        goto default;
+                    default:
+                        buffer ~= ch;
+                        continue;
+                }
+            }
+            buffer ~= "\n";
+        }
+
+        string newText = buffer[];
+
+        if (newText != sources[index].source)
+        {
+            writeln("Source changed. ", fullNormalizedPath);
+            sources[index].source = newText;
+
+            // reload.
+        }
+    }
+
+    bool hasShaderForStage(ShaderStage stage)
+    {
+        return sources[cast(size_t) stage].file != null;
+    }
+}
+

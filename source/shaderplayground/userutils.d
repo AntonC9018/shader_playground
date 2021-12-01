@@ -13,6 +13,11 @@ interface ITerminate
     void terminate();
 }
 
+interface IProcessSourceFileModifiedEvent
+{
+    void processSourceFileModifiedEvent(string fullNormalizedPath);
+}
+
 class AppBase(Uniforms) : IApp, ITerminate
 {
     Unforms uniforms;
@@ -50,12 +55,12 @@ template TypeAliases(TAttribute, TUniforms)
     alias FragmentDeclarations = shaderplayground.d_to_shader.FragmentMarkedUniformDeclarations!TUniforms;
     alias ShaderProgram        = shaderplayground.d_to_shader.ShaderProgram!TUniforms;
 
-    ShaderSource vertexShaderSource(string shaderText, const ShaderSource[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
+    ShaderSource vertexShaderSource(string shaderText, const ShaderImport*[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
     {
         return createShaderSource(shaderText, VertexDeclarations, imports, SHADER_HEADER, file, line);
     }
 
-    ShaderSource fragmentShaderSource(string shaderText, const ShaderSource[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
+    ShaderSource fragmentShaderSource(string shaderText, const ShaderImport*[] imports = null, string file = __FILE_FULL_PATH__, size_t line = __LINE__)
     {
         return createShaderSource(shaderText, FragmentDeclarations, imports, SHADER_HEADER, file, line);
     }

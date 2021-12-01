@@ -9,7 +9,13 @@ void main(string[] args)
 
     initialize();
     import std.stdio;
-    switch (args[1])
+    string appname;
+    if (args.length < 2)
+        appname = "abstract";
+    else
+        appname = args[1];
+
+    switch (appname)
     {
         case "diagram": 
         {
@@ -57,9 +63,46 @@ void run(IApp[] apps)
 
     double time = glfwGetTime();
 
+    import fswatch;
+    import std.path;
+    import std.array;
+    import std.stdio;
+
+    bool recursive = true;
+    string sourceFolder = "../source";
+    FileWatch sourceFolderWatcher = FileWatch(sourceFolder, recursive);
+    string absoluteNormalizedWatchedPath = sourceFolder.absolutePath.asNormalizedPath.array;
+
+    bool processFileEvents(ref FileWatch watcher)
+    {
+        foreach (event; watcher.getEvents())
+        {
+            writeln(event);
+            if (event.type == FileChangeEventType.modify)
+            {
+                string path = buildNormalizedPath(absoluteNormalizedWatchedPath, event.path);
+                // if (isAbsolute(name))
+                //     path = name;
+                // else
+                //     path = buildPath(absoluteNormalizedWatchedPath, name);
+                // assert(asNormalizedPath(path).array == path);
+
+                foreach (a; apps)
+                {
+                    if (auto h = cast(IProcessSourceFileModifiedEvent) a)
+                    {
+                        h.processSourceFileModifiedEvent(path);
+                    }
+                }
+            }
+        }
+        return true;
+    }
 
     while (!glfwWindowShouldClose(g_Window))
     {
+        processFileEvents(sourceFolderWatcher);
+
         glfwPollEvents();
         glViewport(0, 0, g_CurrentWindowDimensions.width, g_CurrentWindowDimensions.height);
 
@@ -79,19 +122,19 @@ void run(IApp[] apps)
         }
         g_Camera.active = !ImGui.IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
         ImGui.End();
-		ImGui.Render();
+        ImGui.Render();
 
-		glfwMakeContextCurrent(g_Window);
+        glfwMakeContextCurrent(g_Window);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
         foreach (a; apps)  a.loop(dt);
 
-		ImguiImpl.RenderDrawData(ImGui.GetDrawData());
+        ImguiImpl.RenderDrawData(ImGui.GetDrawData());
 
-		glfwMakeContextCurrent(g_Window);
-		glfwSwapBuffers(g_Window);
+        glfwMakeContextCurrent(g_Window);
+        glfwSwapBuffers(g_Window);
     }
 
     foreach (a; apps)
