@@ -45,7 +45,7 @@ enum ShaderStage: ubyte
     compute = 5
 }
 
-private GLenum shaderStageToGLenum(ShaderStage stage)
+GLenum shaderStageToGLenum(ShaderStage stage)
 {
     final switch (stage) with(ShaderStage)
     {
@@ -68,98 +68,130 @@ private GLenum shaderStageToGLenum(ShaderStage stage)
     }
 }
 
+import shaderplayground.shadercommon;
+
 /// Compile single shader from source
 GLuint compileShader(string source, const ShaderStage stage)
 {
+    errors("shad 0");
     // create a shader
-    GLuint shaderID = glCreateShader(shaderStageToGLenum(stage));
+    GLuint shaderId = glCreateShader(shaderStageToGLenum(stage));
 
+    errors("shad 1");
     // compile the shader
     const char* csource = source.ptr;
-    GLint length = cast(GLint)source.length;
-    glShaderSource(shaderID, 1, &csource, &length);
-    glCompileShader(shaderID);
+    GLint length = cast(GLint) source.length;
+    glShaderSource(shaderId, 1, &csource, &length);
+    errors("shad 2");
+    glCompileShader(shaderId);
+    errors("shad 3");
 
     // check the shader
-    if (!checkCompilation(shaderID, stage))
+    if (!checkCompilation(shaderId))
     {
-        shaderID = 0;
-        glDeleteShader(shaderID);
+        shaderId = 0;
+        glDeleteShader(shaderId);
     }
+    errors("shad 4");
 
-    return shaderID;
+    return shaderId;
 }
 
 /// Link compiled shaders
-GLuint linkShaders(const GLuint[] shaderIDs...)
+GLuint linkShaders(const GLuint[] shaderIds...)
 {
     // create and link program
-    GLuint programID = glCreateProgram();
-    foreach(sh; shaderIDs)
-        glAttachShader(programID, sh);
-    glLinkProgram(programID);
+    GLuint programId = glCreateProgram();
+    errors("prog 1");
+    foreach (sh; shaderIds)
+        glAttachShader(programId, sh);
+    glLinkProgram(programId);
+    errors("prog 2");
 
     // check the program
-    if (!checkLinking(programID))
+    if (!checkLinking(programId))
     {
-        programID = 0;
-        glDeleteProgram(programID);
+        programId = 0;
+        glDeleteProgram(programId);
+    errors("prog 3");
     }
 
     // delete the program parts
-    foreach(sh; shaderIDs)
+    foreach (sh; shaderIds)
     {
-        glDetachShader(programID, sh);
+        glDetachShader(programId, sh);
         glDeleteShader(sh);
+    errors("prog 4 ");
     }
 
-    return programID;
+    errors("prog 5");
+    return programId;
 }
 
 private enum logMaxLen = 1023;
+alias LogBuffer = char[logMaxLen + 1];
 
-private bool checkCompilation(const GLuint shaderID, const ShaderStage stage)
+bool checkShaderCompiled(const uint shaderId)
 {
-    // get status
     GLint status = GL_FALSE;
-    glGetShaderiv(shaderID, GL_COMPILE_STATUS, &status);
+    glGetShaderiv(shaderId, GL_COMPILE_STATUS, &status);
     const bool ok = status != GL_FALSE;
-    // get log
-    GLint infolen;
-    glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &infolen); // includes \0
-    if (infolen > 1)
-    {
-        char[logMaxLen + 1] infobuffer = 0;
-        glGetShaderInfoLog(shaderID, logMaxLen, null, infobuffer.ptr);
-        infolen = min(infolen - 1, logMaxLen);
-        char[] s = stripRight(infobuffer[0..infolen]);
-        // it can be some warning
-        if (!ok)
-            g_Logger.error("Failed to compile shader.");
-        g_Logger.log(s);
-    }
     return ok;
 }
 
-private bool checkLinking(const GLuint programID)
+bool checkShaderProgramLinked(const uint programId)
 {
-    // get status
     GLint status = GL_FALSE;
-    glGetProgramiv(programID, GL_LINK_STATUS, &status);
+    glGetProgramiv(programId, GL_LINK_STATUS, &status);
     const bool ok = status != GL_FALSE;
-    // get log
+    return ok;
+}
+
+
+char[] getLog(alias getivFunc)(return ref scope LogBuffer buffer, const uint objectId)
+{
     GLint infolen;
-    glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &infolen); // includes \0
+    getivFunc(objectId, GL_INFO_LOG_LENGTH, &infolen); // includes \0
     if (infolen > 1)
     {
-        char[logMaxLen + 1] infobuffer = 0;
-        glGetProgramInfoLog(programID, logMaxLen, null, infobuffer.ptr);
+        glGetShaderInfoLog(objectId, logMaxLen, null, buffer.ptr);
         infolen = min(infolen - 1, logMaxLen);
-        char[] s = stripRight(infobuffer[0..infolen]);
-        // it can be some warning
-        if (!ok)
-            g_Logger.error("Failed to link shaders.");
-        g_Logger.log(s);
+        char[] s = stripRight(buffer[0..infolen]);
+        return s;
     }
+    return buffer[0..0];
+}
+
+auto getCompilationLog(return ref scope LogBuffer buffer, const uint shaderId)
+{
+    return getLog!glGetShaderiv(buffer, shaderId);
+}
+
+auto getLinkingLog(return ref scope LogBuffer buffer, const uint programId)
+{
+    return getLog!glGetProgramiv(buffer, programId);
+}
+
+private bool checkCompilation(const GLuint shaderId)
+{
+    const ok = checkShaderCompiled(shaderId);
+    LogBuffer buffer = 0;
+    auto s = getCompilationLog(buffer, shaderId);
+    if (!ok)
+        g_Logger.error("Failed to compile shader.");
+    if (s.length > 0)
+        g_Logger.log(s);
+    return ok;
+}
+
+private bool checkLinking(const GLuint programId)
+{
+    const ok = checkShaderProgramLinked(programId);
+    LogBuffer buffer = 0;
+    auto s = getLinkingLog(buffer, programId);
+    if (!ok)
+        g_Logger.error("Failed to link shaders.");
+    if (s.length > 0)
+        g_Logger.log(s);
     return ok;
 }

@@ -29,8 +29,9 @@ struct Attribute
     // vec2 aTexCoord;
 }
 
-alias Model_t = Model!(Attribute, Uniforms);
-alias Object_t = shaderplayground.object.Object!(Attribute, Uniforms);
+alias A = TypeAliases!(Attribute, Uniforms);
+alias Model_t = A.Model;
+alias Object_t = A.Object;
 
 immutable string vertexShaderText = SHADER_HEADER 
     ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
@@ -116,7 +117,7 @@ class App : IApp
     {
         program = ShaderProgram!Uniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
-        prismModel = Model_t(&program, makeCube!Attribute());
+        prismModel = createModel(makeCube!Attribute, program.id);
 
         dataCsv = loadCsv(getAssetPath("income.csv"));
         import std.range;
@@ -169,7 +170,7 @@ class App : IApp
                 auto transform = translationMatrix(vec3(xShift, 0, -zShift)) * scale;
                 enum howFastColorChanges = 1;
                 uniforms.uColor = colors[(index * howFastColorChanges) % $];
-                prismModel.draw(&uniforms, transform);
+                prismModel.draw(&program, &uniforms, transform);
 
                 if (i == 0) 
                 {

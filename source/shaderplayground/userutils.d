@@ -51,8 +51,8 @@ template TypeAliases(TAttribute, TUniforms)
 {
     import shaderplayground;
 
-    alias Model                = shaderplayground.model.Model!(TAttribute, TUniforms);
-    alias Object               = shaderplayground.object.Object!(TAttribute, TUniforms);
+    alias Model                = shaderplayground.model.Model!(TAttribute);
+    alias Object               = shaderplayground.object.Object!(TAttribute);
     alias VertexDeclarations   = shaderplayground.d_to_shader.VertexDeclarations!(TAttribute, TUniforms);
     alias FragmentDeclarations = shaderplayground.d_to_shader.FragmentMarkedUniformDeclarations!TUniforms;
     alias ShaderProgram        = shaderplayground.d_to_shader.ShaderProgram!TUniforms;

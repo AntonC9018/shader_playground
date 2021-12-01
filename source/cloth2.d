@@ -122,13 +122,13 @@ class App : IApp
         program = A.ShaderProgram();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
-        squareModel = createModel(&program, makeSquare!Attribute);
+        squareModel = createModel(makeSquare!Attribute, program.id);
         square = makeObject(&squareModel);
     }
 
     void loop(double dt)
     {
-        square.draw(&uniforms);
+        square.draw(&program, &uniforms);
     }
 
     void doImgui()

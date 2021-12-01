@@ -186,7 +186,7 @@ struct SkyBox
 
     /// ---  Member Variables!!!
     CubeMap cubeMap;
-    Model!(Attribute, Uniforms) cubeModel;
+    Model!Attribute cubeModel;
     ShaderProgram!Uniforms program;
 
 

@@ -4,19 +4,19 @@ import shaderplayground.model;
 import dlib.math;
 
 
-struct Object(TAttribute, TUniforms)
+struct Object(TAttribute)
 {
-    Model!(TAttribute, TUniforms)* model;
+    Model!(TAttribute)* model;
     mat4 transform = mat4.identity;
 
-    void draw(TUniforms* uniforms)
+    void draw(TProgram, TUniforms)(TProgram* shaderProgram, TUniforms* uniforms)
     {
-        model.draw(uniforms, transform);
+        model.draw(shaderProgram, uniforms, transform);
     }
 }
 
-auto makeObject(TAttribute, TUniforms)
-    (Model!(TAttribute, TUniforms)* model, mat4 transform = mat4.identity)
+auto makeObject(TAttribute)
+    (Model!TAttribute* model, mat4 transform = mat4.identity)
 {
-    return Object!(TAttribute, TUniforms)(model, transform);
+    return Object!(TAttribute)(model, transform);
 }

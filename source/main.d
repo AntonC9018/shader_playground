@@ -59,7 +59,8 @@ void run(IApp[] apps)
     import shaderplayground;
     import std.exception : enforce;
     
-    foreach (a; apps)  a.setup();
+    foreach (a; apps)
+		a.setup();
     g_TextDrawer.setup();
 
     double time = glfwGetTime();

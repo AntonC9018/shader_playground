@@ -78,32 +78,32 @@ immutable fragmentSource = A.fragmentShaderSource(q{
 class App : IApp, ITerminate
 {
     Uniforms uniforms;
-    A.ShaderProgram program;
+    HotreloadShaderProgram!Uniforms p;
     A.Model squareModel;
     A.Object square;
 
-    HotreloadShaderProgram!Uniforms p;
     
     void setup()
     {
         load(uniforms);
-        assert(program.initialize(vertexSource, fragmentSource), "Shader program failed to initialize");
-
-        squareModel = createModel(&program, makeSquare!Attribute);
-        square = makeObject(&squareModel);
-
-        // TODO: not redo if the program is already initialized.
         if (p is null)
         {
             p = new HotreloadShaderProgram!Uniforms();
-            addSourcesGlobally(p,vertexSource);
+            errors("After create");
+            addSourcesGlobally(p, vertexSource);
+            errors("After vertex");
             addSourcesGlobally(p, fragmentSource);
+            errors("After fragment");
+            p.linkProgram();
+            errors("After link");
         }
+        squareModel = createModel(makeSquare!Attribute, p.id);
+        square = makeObject(&squareModel);
     }
 
     void loop(double dt)
     { 
-        square.draw(&uniforms);
+        square.draw(&p, &uniforms);
     }
     void doImgui() { .doImgui(&uniforms); }
     void terminate() { save(uniforms); }

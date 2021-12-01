@@ -30,8 +30,9 @@ struct TestAttribute
     vec2 aTexCoord;
 }
 
-alias Model_t = Model!(TestAttribute, TestUniforms);
-alias Object_t = shaderplayground.object.Object!(TestAttribute, TestUniforms);
+alias A = TypeAliases!(TestAttribute, TestUniforms);
+alias Model_t = A.Model;
+alias Object_t = A.Object;
 
 immutable string vertexShaderText = SHADER_HEADER 
     ~ VertexDeclarations!(TestAttribute, TestUniforms) ~ q{
@@ -91,8 +92,8 @@ class App : IApp
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
         enum recursionCount = 3;
-        sphereModel = Model_t(&program, makeSphere!TestAttribute(recursionCount));
-        prismModel = Model_t(&program, makeCube!TestAttribute());
+        sphereModel = Model_t(makeSphere!TestAttribute(recursionCount));
+        prismModel = Model_t(makeCube!TestAttribute());
         
         sphere = Object_t(&sphereModel, translationMatrix(vec3(1, 1, 2)));
         prism = Object_t(&prismModel);
@@ -109,8 +110,8 @@ class App : IApp
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
 
-        sphere.draw(&uniforms);
-        prism.draw(&uniforms);
+        sphere.draw(&program, &uniforms);
+        prism.draw(&program, &uniforms);
 
         text.draw();
     }

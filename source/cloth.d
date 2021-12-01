@@ -20,8 +20,9 @@ struct Attribute
     vec2 aTexCoord;
 }
 
-alias Model_t = Model!(Attribute, Uniforms);
-alias Object_t = shaderplayground.object.Object!(Attribute, Uniforms);
+alias A = TypeAliases!(Attribute, Uniforms);
+alias Model_t = A.Model;
+alias Object_t = A.Object;
 
 immutable string vertexShaderText = SHADER_HEADER 
     ~ VertexDeclarations!(Attribute, Uniforms) ~ q{
@@ -68,7 +69,7 @@ class App : IApp
         program = ShaderProgram!Uniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
-        squareModel = createModel(&program, makeSquare!Attribute);
+        squareModel = createModel(makeSquare!Attribute, program.id);
         square = makeObject(&squareModel);
 
         textureManager.setup();
@@ -78,7 +79,7 @@ class App : IApp
     void loop(double dt)
     {
         uniforms.uTime = glfwGetTime();
-        square.draw(&uniforms);
+        square.draw(&program, &uniforms);
     }
 
     void doImgui()

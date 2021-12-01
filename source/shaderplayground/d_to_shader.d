@@ -320,7 +320,8 @@ struct ShaderProgram(TUniforms)
     bool initialize(S)(in S vertexSource, in S fragmentSource)
     {
         import shaderplayground.shaderloader;
-        
+		errors("initialize");
+
         string[2] sources;
         // This has way more info.
         // TODO: Adjust the file and line received from open gl using info in here.
@@ -344,7 +345,6 @@ struct ShaderProgram(TUniforms)
         if (id == 0) return false;
 
         uniformInfos.queryLocations(id);
-        errors(logger);
 
         return !logger.hasErrors;
     }
@@ -576,14 +576,14 @@ private struct SourceInfo
     ShaderSource source;
     string declarationString;
     uint id;
+    bool isCompiled;
     void delegate(in SourceFilesHotreloadProvider, uint indexChanged)[] changedSubscribers;
-
-    bool isCompiled() { return id != cast(uint) -1; }
 }
 
 // I might be overcomplicating this.
 struct SourceFilesHotreloadProvider
 {
+    import shaderplayground.shaderloader;
     import std.algorithm;
     import std.string;
     import std.range;
@@ -616,19 +616,29 @@ struct SourceFilesHotreloadProvider
             "Please use token strings with the hotreload feature.");
         info.declarationString = lines.front.idup;
 
-        shaderSourceInfos ~= info;
-
+        info.id = glCreateShader(shaderStageToGLenum(info.source.stage));
+        // This needs to be initialized only once.
         recompileShaderSource(&info);
+        shaderSourceInfos ~= info;
 
         return cast(uint) shaderSourceInfos.length - 1;
     }
 
     void recompileShaderSource(SourceInfo* info)
     {
-        writeln(info.source.source);
-        writeln(info.source.source.length);
         writeln("Recompiling ", info.source.file);
-        info.id = 0;
+        string text = info.source.text;
+        const char* csource = text.ptr;
+        GLint length = cast(GLint) text.length;
+        glShaderSource(info.id, 1, &csource, &length);
+        glCompileShader(info.id);
+
+        info.isCompiled = checkShaderCompiled(info.id);
+
+        LogBuffer buffer;
+        auto log = getCompilationLog(buffer, info.id);
+        if (log.length > 0)
+            writeln(log);
     }
 
     void fileModified(string fullNormalizedPath)
@@ -717,13 +727,18 @@ class HotreloadShaderProgram(TUniforms)
     // Indices into the provider's 
     uint[] shaderSourceIndices;
     uint id = cast(uint) -1;
+    bool isLinked;
 
-    bool isPrimed() { return id != cast(uint) -1; }
+    void delegate(HotreloadShaderProgram program)[] programRelinkedCallbacks;
+
+    this() { id = glCreateProgram(); }
 
     void addSource(SourceFilesHotreloadProvider* provider, uint shaderSourceIndex)
     {
         shaderSourceIndices ~= shaderSourceIndex;
-        provider.shaderSourceInfos[shaderSourceIndex].changedSubscribers ~= &recompile;
+        auto info = &provider.shaderSourceInfos[shaderSourceIndex];
+        info.changedSubscribers ~= &recompile;
+        glAttachShader(id, info.id);
     }
 
     private void recompile(in SourceFilesHotreloadProvider provider, uint indexChanged)
@@ -731,12 +746,45 @@ class HotreloadShaderProgram(TUniforms)
         size_t indexOfChangedShaderSource = shaderSourceIndices.countUntil(indexChanged);
         assert(indexOfChangedShaderSource < shaderSourceIndices.length, 
             "This means we have added the callback to a wrong thing.");
-        linkProgram(provider);
+        
+        // glDetachShader(id, provider.shaderSourceInfos[indexOfChangedShaderSource].id);
+
+        if (shaderSourceIndices.all!(i => provider.shaderSourceInfos[i].isCompiled))
+        {
+            writeln("Relinking program");
+            linkProgram();
+        }
     }
 
-    void linkProgram(in SourceFilesHotreloadProvider provider)
+    void linkProgram()
     {
-        writeln("Linking ");
+        glLinkProgram(id);
+        if (checkShaderProgramLinked(id))
+        {
+            uniformInfos.queryLocations(id);
+            foreach (c; programRelinkedCallbacks)
+                c(this);
+        }
+
+        LogBuffer buffer;
+        auto log = getLinkingLog(buffer, id);
+        if (log.length > 0)
+            writeln(log);
+    }
+
+    void addRelinkedCallback(void delegate(typeof(this)) callback)
+    {
+        programRelinkedCallbacks ~= callback;
+    }
+
+    void setUniforms(TUniforms* uniforms)
+    {
+        .setUniforms(uniformInfos, uniforms);
+    }
+
+    void use()
+    {
+        glUseProgram(id);
     }
 }
 
@@ -745,7 +793,8 @@ class HotreloadShaderProgram(TUniforms)
 uint addSourcesGlobally(T)(ref T program, ShaderSource source)
 {
     import shaderplayground.globals : g_SourceFilesHotreloadProvider;
-    uint id = g_SourceFilesHotreloadProvider.addShaderSource(source);
-    program.addSource(&g_SourceFilesHotreloadProvider, id);
-    return id;
+    uint index = g_SourceFilesHotreloadProvider.addShaderSource(source);
+    program.addSource(&g_SourceFilesHotreloadProvider, index);
+    errors("glob 2");
+    return g_SourceFilesHotreloadProvider.shaderSourceInfos[index].id;
 }

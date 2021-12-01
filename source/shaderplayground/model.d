@@ -41,9 +41,8 @@ void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 
 
 
-struct Model(TAttribute, TUniforms)
+struct Model(TAttribute)
 {
-    ShaderProgram!TUniforms* program;
     ModelData!TAttribute modelData;
 
     VertexBuffer!TAttribute vertexBuffer;
@@ -52,16 +51,13 @@ struct Model(TAttribute, TUniforms)
     mat4 localTransform; 
     uint vaoId;
 
-    this(ShaderProgram!TUniforms* program, ModelData!TAttribute modelData)
+    this(ModelData!TAttribute modelData)
     {
-        assert(program.id != 0, "The program must be initialized at this point");
-        this.program = program;
         this.modelData = modelData;
         this.localTransform = mat4.identity;
-        initializeBuffers();
     }
 
-    void initializeBuffers()
+    void initializeBuffers(uint programId)
     {
         import shaderplayground;
         import std.exception;
@@ -71,18 +67,19 @@ struct Model(TAttribute, TUniforms)
         glGenVertexArrays(1, &vaoId);
         glBindVertexArray(vaoId);
 
-        setupVertexBuffer(vertexBuffer, program.id, modelData.vertexData);
+        setupVertexBuffer(vertexBuffer, programId, modelData.vertexData);
         enforce(indexBuffer.validateData(modelData.indexData, modelData.vertexData.length));
         setupIndexBuffer(indexBuffer, modelData.indexData);
     }
 
-    void draw(TUniforms* uniforms, auto ref mat4 transform = mat4.identity)
+    void draw(TProgram, TUniforms)(TProgram* shaderProgram, TUniforms* uniforms, auto ref mat4 transform = mat4.identity)
     {
         glBindVertexArray(vaoId);
-        program.use();
+        shaderProgram.use();
 
         setModelRelatedUniforms(transform * localTransform, uniforms);
-        program.setUniforms(uniforms);
+        static assert(__traits(hasMember, TProgram, "setUniforms"));
+        shaderProgram.setUniforms(uniforms);
 
         glDrawElements(GL_TRIANGLES, cast(int) modelData.indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
         
@@ -90,12 +87,11 @@ struct Model(TAttribute, TUniforms)
     }
 }
 
-template createModel(TAttribute, TUniforms)
+auto createModel(TAttribute)(ModelData!TAttribute modelData, uint programId)
 {
-    auto createModel(ShaderProgram!TUniforms* program, ModelData!TAttribute modelData)
-    {
-        return Model!(TAttribute, TUniforms)(program, modelData);
-    }
+    auto m = Model!(TAttribute)(modelData);
+    m.initializeBuffers(programId);
+    return m;
 }
 
 template makeSquare(TAttribute)
