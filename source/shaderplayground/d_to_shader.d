@@ -498,12 +498,18 @@ void load(T)(out T uniforms)
 import std.algorithm;
 import std.range;
 
-struct ShaderSource
+struct ShaderData
 {
     string source;
     const (ShaderImport*)[] imports;
     string file;
     size_t line;
+}
+
+struct ShaderSource
+{
+    ShaderData data;
+    alias data this;
     
     ShaderStage stage;   
     string declarations;
@@ -520,18 +526,17 @@ struct ShaderSource
         return result;
     }
 
-    size_t getLineCountBeforeSource()
+    /// Returns the length, discluding source and the imports
+    size_t getAnnotationLineCount()
     {
-        return imports.map!`a.getLineCountBeforeSource()`.fold!`a + b`(0UL) + 1 + declarations.count('\n');
+        return 1 + declarations.count('\n');
     }
 }
 
 struct ShaderImport
 {
-    string source;
-    const (ShaderImport*)[] imports;
-    string file;
-    size_t line;
+    ShaderData data;
+    alias data this;
 
     const:
     string text()
@@ -543,10 +548,86 @@ struct ShaderImport
         return result;
     }
 
-    size_t getLineCountBeforeSource()
+    /// Returns the length, discluding source and the imports
+    size_t getAnnotationLineCount()
     {
-        return imports.map!`a.getLineCountBeforeSource()`.fold!`a + b`(0UL) + source.count('\n');
+        return 0;
     }
+}
+
+// size_t getLineCount(const (ShaderImport*)[] imports)
+// {
+//     return imports.map!(a => a.getLineCount()).fold!(`a + b`)(0UL);
+// }
+
+struct ImportPositionResult
+{
+    const (ShaderData)* shaderData;
+    int lineOffsetWithinImport;
+}
+
+private ImportPositionResult getShaderDataAtLineInternal(in ShaderData data, int line)
+{
+    int lineCount = 0;
+
+    foreach (imp; data.imports)
+    {
+        auto recursionResult = getShaderDataAtLineInternal(imp.data, line);
+        if (recursionResult.shaderData)
+            return recursionResult;
+
+        assert(recursionResult.lineOffsetWithinImport >= 0);
+        lineCount += recursionResult.lineOffsetWithinImport;
+        int numLinesInSource = cast(int) imp.source.count('\n');
+
+        if (lineCount + numLinesInSource > line)
+            return typeof(return)(&imp.data, line - lineCount);
+
+        lineCount += numLinesInSource;
+    }
+
+    return typeof(return)(null, lineCount);
+}
+ImportPositionResult getShaderDataAtLine(T)(in T source, int line)
+{
+    line -= cast(int) source.getAnnotationLineCount();
+    auto result = getShaderDataAtLineInternal(source.data, line);
+    if (result.shaderData is null)
+    {
+        result.lineOffsetWithinImport = line - result.lineOffsetWithinImport;
+        result.shaderData = &source.data;
+    }
+    return result;
+}
+unittest
+{
+    ShaderImport i0 = createShaderImport("\n");
+    ShaderImport i1 = createShaderImport("\n", [&i0]);
+    ShaderSource s0 = createShaderSource("\n\n", ShaderStage.vertex, "", [&i1]);
+
+    // So its like this
+    // s0 header, 1 line
+    // i0, 1 line
+    // i1, 1 line
+    // s0 source, 2 lines
+    {
+        auto imp = getShaderDataAtLine(s0, 1);
+        assert(imp.shaderData == &i0);
+        assert(imp.lineOffsetWithinImport == 0);
+    }
+    {
+        auto imp = getShaderDataAtLine(s0, 2);
+        writeln(imp);
+        assert(imp.shaderData == &i1);
+        assert(imp.lineOffsetWithinImport == 0);
+    }
+    {
+        auto imp = getShaderDataAtLine(s0, 4);
+        writeln(imp);
+        assert(imp.shaderData == null);
+        assert(imp.lineOffsetWithinImport == 1);
+    }
+    assert(s0.getAnnotationLineCount() == 1);
 }
 
 
@@ -580,7 +661,7 @@ ShaderImport createShaderImport(
     size_t line = __LINE__)
 {
     import std.string : replace;
-    return ShaderImport(source.replace("\r\n", "\n"), imports, file, line);
+    return ShaderImport(ShaderData(source.replace("\r\n", "\n"), imports, file, line));
 }
 
 private struct SourceInfo
@@ -649,46 +730,42 @@ struct SourceFilesHotreloadProvider
 
         LogBuffer buffer;
         auto log = getCompilationLog(buffer, info.id);
-        
-        if (log.length > 0)
-            writeln(log);
+        auto processedLog = appender!string;
+        processedLog.reserve(log.length);
 
-        foreach (line; log.splitter("\n"))
+        import std.typecons : Yes;
+        import std.format;
+        foreach (line; splitter!(`a == b`, Yes.keepSeparators)(log, "\n"))
         {
             if (!startsWith(line, "0("))
+            {
+                processedLog ~= line;
                 continue;
-
-            auto numberString = line[2 .. 2 + countUntil(line[2..$], ')')];
-            writeln(numberString);
-            size_t number = to!size_t(numberString);
-            writeln(number);
-            size_t actualNumber = number - info.source.getLineCountBeforeSource() + info.source.line - 1;
-            writeln(actualNumber);
-
-            // count digits and add that to index
-            size_t index = 2;
-            size_t a = actualNumber;
-            while (a > 0)
-            {
-                a /= 10;
-                index++;
             }
 
-            line[index] = ')';
-            if (line[index + 2] != ':')
-                line[index + 1] = ':';
+            auto closingParenIndex = 2 + countUntil(line[2..$], ')');
+            auto numberString = line[2 .. closingParenIndex];
+            int lineOffsetWithinShaderText = to!int(numberString) - 1;
 
-            a = actualNumber;
-            while (a > 0)
-            {
-                index--;
-                line[index] = a % 10 + '0';
-                a /= 10;
-            }
+            auto positionResult = getShaderDataAtLine(info.source, lineOffsetWithinShaderText);
+
+            processedLog ~= positionResult.shaderData.file;
+            processedLog ~= '(';
+            formattedWrite(processedLog, "%d", positionResult.lineOffsetWithinImport + positionResult.shaderData.line);
+            processedLog ~= ')';
+            processedLog ~= line[closingParenIndex + 1 .. $];
         }
 
         if (log.length > 0)
-            writeln(log);
+            writeln(processedLog[]);
+
+        debug
+        {
+            import std.path;
+            auto file = File(baseName(info.source.file).setExtension("") ~ info.id.to!string ~ ".glsl", "w");
+            file.write(info.source.text);
+            file.close();
+        }
     }
 
     void fileModified(string fullNormalizedPath)
@@ -756,7 +833,7 @@ struct SourceFilesHotreloadProvider
 
             if (newText != info.source.source)
             {
-                writeln("Source changed. ", fullNormalizedPath);
+                // writeln("Source changed. ", fullNormalizedPath);
                 info.source.source = newText;
                 recompileShaderSource(&info);
 
@@ -793,7 +870,6 @@ struct HotreloadShaderProgram(TUniforms)
 
         if (shaderSourceIndices.all!(i => provider.shaderSourceInfos[i].isCompiled))
         {
-            writeln("Relinking program");
             linkProgram();
         }
     }
@@ -835,6 +911,8 @@ void addSource(Program)(ref Program shaderProgram,
 {
     shaderProgram.shaderSourceIndices ~= shaderSourceIndex;
     auto info = &provider.shaderSourceInfos[shaderSourceIndex];
+
+    // TODO: This is potentially dangerous, the subscribers need to be detached when the program is deleted.
     auto p = &shaderProgram;
     provider.shaderSourceInfos[shaderSourceIndex].changedSubscribers ~= &p.recompile;
     glAttachShader(shaderProgram.id, info.id);
@@ -861,6 +939,9 @@ bool reinitializeHotloadShaderProgram(T)(ref T program, ShaderSource[] sources..
         program.initialize();
         addSourcesGlobally(program, sources);
         program.linkProgram();
+
+        import shaderplayground.shaderloader;
+        assert(checkShaderProgramLinked(program.id));
         return true;
     }
     return false;
