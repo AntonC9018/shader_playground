@@ -26,6 +26,11 @@ dub -- cloth
 ![Covor](screenshots/covor.png)
 
 ```
+dub -- cloth2
+```
+![covor2](screenshots/covor2.png)
+
+```
 dub -- abstract
 ```
 ![Abstract thing](screenshots/abstract.png)

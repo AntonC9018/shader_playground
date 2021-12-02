@@ -14,6 +14,8 @@ shaders_test.lib
 bin/*
 !bin/glfw3.dll
 !bin/imgui.lib
+!bin/.gitignore
+!bin/cloth2.Uniforms.json
 
 vcg_ast
 .vs
