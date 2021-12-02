@@ -88,7 +88,7 @@ void run(IApp[] apps)
                 //     path = buildPath(absoluteNormalizedWatchedPath, name);
                 // assert(asNormalizedPath(path).array == path);
                 
-                g_SourceFilesHotreloadProvider.fileModified(path);
+                g_SourceFilesHotreloadProvider.onFileModified(path);
             }
         }
         return true;
