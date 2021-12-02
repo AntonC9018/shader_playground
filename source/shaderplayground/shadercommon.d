@@ -50,9 +50,9 @@ void errors(ref Logger logger)
     }
 }
 
-struct Uniform(T)
+struct UniformLocation(string uniformName, T)
 {
-    string name; 
+    enum name = uniformName; 
     int location = -1;
 
     void findLocation(uint programId)
@@ -61,32 +61,40 @@ struct Uniform(T)
         location = glGetUniformLocation(programId, name.toStringz());
     }
     
-    template TypeSuffix(T)
+    void set(Args...)(auto ref Args args)
     {
-        static if (is(T == float))
-            enum TypeSuffix = "f";
-        else static if (is(T == int))
-            enum TypeSuffix = "i";
-        else static if (is(T == uint))
-            enum TypeSuffix = "ui";
-        else
-            static assert(0);
+        UniformSetValue!(name, T)(location, args);
     }
-    
+}
+
+private template TypeSuffix(T)
+{
+    static if (is(T == float))
+        enum TypeSuffix = "f";
+    else static if (is(T == int))
+        enum TypeSuffix = "i";
+    else static if (is(T == uint))
+        enum TypeSuffix = "ui";
+    else
+        static assert(0);
+}
+
+private template UniformSetValue(string name, F)
+{
     import arsd.png;
     import shaderplayground.texture;
-    
-    static if (is(T == float) || is(T == int) || is(T == uint)) 
+
+    static if (is(F == float) || is(F == int) || is(F == uint)) 
     {
-        void set(auto ref T value = T.init)
+        void UniformSetValue(int location, auto ref F value = F.init)
         {
-            mixin(`glUniform1` ~ TypeSuffix!(T) ~ `(location, value);`);
+            mixin(`glUniform1` ~ TypeSuffix!(F) ~ `(location, value);`);
             errors("Uniform " ~ name);
         }
     }
-    else static if (is(T == Texture2D) || is(T == CubeMap))
+    else static if (is(F == Texture2D) || is(F == CubeMap))
     {
-        void set(T tex, uint textureUnit)
+        void UniformSetValue(int location, F tex, uint textureUnit)
         {
             glActiveTexture(cast(GLenum) (GL_TEXTURE0 + textureUnit));
             tex.bind();
@@ -95,23 +103,24 @@ struct Uniform(T)
     }
     else
     {
-        void set(auto ref T value = T.init)
+        void UniformSetValue(int location, auto ref F value = F.init)
         {
             if (location == -1) return;
             import std.conv : to;
 
             enum string Suffix(T, int N) = N.to!string() ~ TypeSuffix!(T) ~ "v";
 
-            static if (is(T : Vector!(T, N), T, int N))
+            static if (is(F : Vector!(T, N), T, int N))
             {
                 mixin(`glUniform` ~ Suffix!(T, N))(location, 1, cast(T*) &value);
             }
-            else static if (is(T : Matrix!(T, N), T, int N))
+            else static if (is(F : Matrix!(T, N), T, int N))
             {
                 mixin(`glUniformMatrix` ~ Suffix!(T, N))(location, 1, GL_FALSE, cast(T*) &value);
             }
+            else static assert(0);
+
             errors("Uniform " ~ name);
         }
     }
 }
-

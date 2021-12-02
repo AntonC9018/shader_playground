@@ -8,6 +8,7 @@ import std.conv : to;
 import std.string : toStringz;
 import std.stdio;
 
+enum ValuesSetCallback;
 /// Makes imgui sliders and stuff for the value
 enum Edit;
 /// Treat vector value as color
@@ -50,6 +51,10 @@ private string getTypeName(F)()
     {
         static assert (is(T == float));
         return "mat" ~ N.to!string();
+    }
+    else static if (is(F : T[N], T, size_t N))
+    {
+        return getTypeName!T ~ `[` ~ N.to!string() ~ `]`;
     }
     else static assert(0);
 }
@@ -95,7 +100,7 @@ string VertexDeclarations(TAttribute, TUniforms)()
     return VertexAttributeShaderDeclarations!TAttribute ~ VertexMarkedUniformDeclarations!TUniforms;
 }
 
-private void doEdit(T)(string name, T* memory)
+private void doEdit(string name, T)(T* memory)
 {
     static if (is(T == float))
     {
@@ -112,29 +117,42 @@ private void doEdit(T)(string name, T* memory)
     else static if (is(T : Vector!(int, N), int N))
     {
         mixin(`ImGui.InputInt` ~ N.to!string())(name.toStringz, cast(int*) memory);
-    }        
+    }
 }
 
-private void doColor(T)(string name, T* vector)
+private void doColor(string name, T)(T* vector)
 {
     static if (is(T : Vector!(float, N), int N) && (N == 3 || N == 4))
     {
-        mixin(`ImGui.ColorEdit` ~ N.to!string())(name.toStringz, cast(float*) vector);
+        mixin(`ImGui.ColorEdit` ~ N.to!string())(name.ptr, cast(float*) vector);
     }
     else static assert(0);
 }
 
-private void doRange(T)(string name, Range range, T* memory)
+private void doRange(string name, T)(Range range, T* memory)
 if (is(T == float))
 {
     ImGui.SliderFloat(name.toStringz, memory, range.a, range.b);
 }
 
-struct UniformInfo(TUniforms)
+private template UniformInfoThing(alias field)
+{
+    static if (is(typeof(field) : T[N], T, size_t N))
+    {
+        static foreach (i; 0 .. N)
+            mixin("auto " ~ __traits(identifier, field) ~ i.to!string ~ " = UniformLocation!(__traits(identifier, field) ~ `[` ~ i.to!string ~ `]`, T)();");
+    }
+    else
+    {
+        mixin("auto " ~ __traits(identifier, field) ~ " = UniformLocation!(__traits(identifier, field), typeof(field))();");
+    }
+}
+
+private struct UniformInfo(TUniforms)
 {
     static foreach (field; TUniforms.tupleof)
     {
-        mixin("auto " ~ __traits(identifier, field) ~ " = Uniform!(typeof(field))(__traits(identifier, field));");
+        mixin UniformInfoThing!field;
     }
 
     void queryLocations(uint programId)
@@ -247,6 +265,27 @@ struct VertexBuffer(TAttribute)
     }
 }
 
+private void doCorrectThingWithMemory(alias attr, string name, M)(M* memory)
+{
+    static if (is(M == T[N], T, size_t N))
+    {
+        static foreach (i; 0 .. N)
+            doCorrectThingWithMemory!(attr, name ~ `[` ~ to!string(i) ~ `]`)(&(*memory)[i]);
+    }
+    else static if (is(attr == Edit))
+    {
+        doEdit!(name)(memory);
+    }
+    else static if (is(attr == Color))
+    {
+        doColor!(name)(memory);
+    } 
+    else static if (is(typeof(attr) == Range))
+    {
+        doRange!(name)(cast(Range) attr, memory);
+    }
+}
+
 void doImgui(TUniforms)(TUniforms* uniforms)
 {
     static foreach (field; TUniforms.tupleof)
@@ -262,18 +301,19 @@ void doImgui(TUniforms)(TUniforms* uniforms)
         }
         else static foreach(attr; __traits(getAttributes, field))
         {
-            // Don't break, allow more than one ways to change a variable.
-            static if (is(attr == Edit))
+            doCorrectThingWithMemory!(attr, name)(memory);
+        }
+    }}
+    static foreach (member; __traits(allMembers, TUniforms))
+    {{
+        static if (is(typeof(__traits(getMember, TUniforms, member)) == function))
+        {
+            static foreach(attr; __traits(getAttributes, __traits(getMember, TUniforms, member)))
             {
-                doEdit(name, memory);
-            }
-            else static if (is(attr == Color))
-            {
-                doColor(name, memory);
-            } 
-            else static if (is(typeof(attr) == Range))
-            {
-                doRange(name, cast(Range) attr, memory);
+                static if (is(attr == ValuesSetCallback))
+                {
+                    __traits(getMember, uniforms, member)();
+                }
             }
         }
     }}
@@ -291,6 +331,11 @@ void setUniforms(TUniforms)(ref UniformInfo!TUniforms infos, TUniforms* uniforms
         {
             __traits(getMember, infos, name).set(__traits(child, uniforms, field), textureUnitIndex);
             textureUnitIndex++;
+        }
+        else static if (is(typeof(field) == T[N], T, size_t N))
+        {
+            static foreach (i; 0 .. N)
+                __traits(getMember, infos, name ~ i.to!string).set(__traits(child, uniforms, field)[i]);
         }
         else
         {
@@ -368,6 +413,27 @@ void setupIndexBuffer(ref IndexBuffer buffer, const ivec3[] data)
 
 import std.json;
 
+
+private JSONValue GetJsonValue(F)(in F field)
+{
+    static if (is(F == T[N], T, size_t N))
+    {
+        JSONValue[] result;
+        foreach (i; 0 .. N)
+            result ~= GetJsonValue!T(field[i]);
+        return JSONValue(result);
+    }
+    else static if (__traits(hasMember, F, "arrayof"))
+    {
+        return JSONValue(field.arrayof);
+    }
+    else static if (is(F : double) || is(F == bool)) 
+    {
+        return JSONValue(field);
+    }
+    else static assert(0);
+}
+
 JSONValue uniformsToJson(T)(in T obj)
 {
     JSONValue result;
@@ -377,19 +443,37 @@ JSONValue uniformsToJson(T)(in T obj)
         {
             static if (IsEditable!attribute)
             {
-                static if (__traits(hasMember, typeof(field), "arrayof"))
-                {
-                    result[__traits(identifier, field)] = JSONValue(__traits(child, obj, field).arrayof);
-                }
-                else static if (is(typeof(field) : double) || is(typeof(field) == bool)) 
-                {
-                    result[__traits(identifier, field)] = JSONValue(__traits(child, obj, field));
-                }
-                else static assert(0);
+                result[__traits(identifier, field)] = GetJsonValue(__traits(child, obj, field));
             }
         }
     }
     return result;
+}
+
+
+private void SetJsonValue(F)(const(JSONValue)* value, out F field)
+{
+    static if (__traits(hasMember, F, "arrayof"))
+    {
+        auto t = value.array();
+        if (t.length == field.arrayof.length)
+        {
+            foreach (index; 0 .. t.length)
+                field.arrayof[index] = t[index].get!(typeof(field.arrayof[0]));
+        }
+    }
+    else static if (is(F : T[N], T, size_t N))
+    {
+        auto t = value.array();
+        import std.algorithm : min;
+        foreach (index; 0 .. min(t.length, field.length))
+            SetJsonValue(&t[index], field[index]);
+    }
+    else static if (is(typeof(field) : double) || is(typeof(field) == bool)) 
+    {
+        field = value.get!(typeof(field));
+    }
+    else static assert(0);
 }
 
 void uniformsFromJson(T)(JSONValue json, out T obj)
@@ -407,20 +491,7 @@ void uniformsFromJson(T)(JSONValue json, out T obj)
                 {
                     try 
                     {
-                        static if (__traits(hasMember, typeof(field), "arrayof"))
-                        {
-                            auto t = p.array();
-                            if (t.length == __traits(child, obj, field).arrayof.length)
-                            {
-                                foreach (index; 0 .. t.length)
-                                    __traits(child, obj, field).arrayof[index] = t[index].get!(typeof(field.arrayof[0]));
-                            }
-                        }
-                        else static if (is(typeof(field) : double) || is(typeof(field) == bool)) 
-                        {
-                            __traits(child, obj, field) = p.get!(typeof(field));
-                        }
-                        else static assert(0);
+                        SetJsonValue(p, __traits(child, obj, field));
                     }
                     catch (JSONException exc)
                     {

@@ -7,25 +7,20 @@ struct Uniforms
     @Vertex mat4 uModelViewProjection;
 
     @Fragment {
-        @Range(0, 0.2) float uGapWidth = 0.1;
-        @Color vec3 uGapColor = vec3(1, 0, 0);
-
-        @Range(0, 0.2) float uGap2Width = 0.1;
-        @Color vec3 uGap2Color = vec3(0, 1, 0);
-        
-        @Range(0, 0.4) float uRimWidth = 0.2;
-        @Color vec3 uRimColor = vec3(0, 0, 1);
-
-        @Range(0, 0.4) float uRhombusWidth = 0.2;
-        @Color vec3 uRhombusColor = vec3(0.5, 0.8, 0);
-
-        @Range(0, 0.2) float uRhombusCenterWidth = 0.1;
-        @Color vec3 uRhombusCenterColor = vec3(0, 0, 0);
-
-        @Range(0, 2) float uDisplacementFactor = 1;
-        @Range(0, 100) float uLocality = 1;
-
+        @Color vec3[4] uColors = [
+            vec3(1, 1, 1),
+            vec3(1, 0, 0),
+            vec3(0, 1, 0),
+            vec3(0, 0, 1)   
+        ];
+        @Range(0, 1) float[4] uColorChangeDistances = [ 0.25, 0.5, 0.75, 1.0 ];
         @Range(0, 20) float uNumPatterns = 2;
+    }
+
+    @ValuesSetCallback
+    void valuesSet()
+    {
+        uColorChangeDistances[3] = 1;
     }
 }
 
@@ -38,8 +33,7 @@ struct Attribute
 alias A = TypeAliases!(Attribute, Uniforms);
 
 
-immutable string vertexShaderText = SHADER_HEADER 
-    ~ A.VertexDeclarations ~ q{
+immutable vertexShaderSource = A.vertexShaderSource(q{
 
     out vec2 vTexCoord;
 
@@ -48,80 +42,69 @@ immutable string vertexShaderText = SHADER_HEADER
         gl_Position = uModelViewProjection * vec4(aPosition, 1.0);
         vTexCoord = aTexCoord;
     }
-};
+});
 
-immutable string fragmentShaderText = SHADER_HEADER
-    ~ A.FragmentDeclarations 
-    ~ importNoise.source ~ q{
+immutable fragmentShaderSource = A.fragmentShaderSource(q{
 
     in vec2 vTexCoord;
     out vec4 fragColor;
 
-    vec3 getColor(vec2 coord)
+    float manhattanDistance(vec2 a, vec2 b)
     {
-        float x = coord.x;
-        float y = coord.y;
-
-        if (y < uGapWidth)
-            return uGapColor;
-        
-        y -= uGapWidth;
-
-        if (x < uRhombusCenterWidth && y < uRhombusCenterWidth - x)
-            return uRhombusCenterColor;
-
-        if (x < 1 - uGap2Width && y < 1 - uGap2Width - x )
-            return uRhombusColor;  
-
-        if (y < 1 - x)
-            return uGap2Color;
-
-        return uRimColor;
+        return dot(abs(a - b), vec2(1, 1));
     }
 
     void main() 
     {
-        float locality = uLocality * uNumPatterns;
-        float displacement = uDisplacementFactor / uLocality;
-        vec2 sampledPoint = vTexCoord * locality;
-        float xOffset = fract(noise(sampledPoint) * displacement);
-        float yOffset = fract(noise(sampledPoint + 5.0) * displacement);
+        vec2 coord = vTexCoord - vec2(0.5, 0.5);
+        coord *= sqrt(2);
+        coord += vec2(0.5, 0.5);
 
-        vec2 t = mod(vTexCoord * uNumPatterns, 1.0) * 2;
+        vec2[4] points;
+        // left
+        points[0] = vec2(0.25, 0.5);
+        // up
+        points[1] = vec2(0.5, 0.25);
+        // right
+        points[2] = vec2(0.75, 0.5);
+        // bottom
+        points[3] = vec2(0.5, 0.75);
 
-        if (t.x > 1)
-            t.x = 2 - t.x;
-        if (t.y > 1)
-            t.y = 2 - t.y;
 
-        if (t.x > 1)
-            t.x = 2 - t.x;
-        if (t.y > 1)
-            t.y = 2 - t.y;
+        float minDistance = manhattanDistance(coord, points[0]);
+        for (int i = 1; i < 4; i++)
+        {
+            float distance = manhattanDistance(coord, points[i]);
+            if (distance < minDistance)
+                minDistance = distance;
+        }
+        minDistance *= 2;
 
-        t.x = 1 - t.x;
+        if (minDistance >= 1)
+        {
+            fragColor = vec4(1, 1, 0, 1);
+            return;
+        }
 
-        vec2 factor = vec2(
-            1, (uRimWidth + uRhombusCenterWidth + uRhombusWidth + uGapColor + uGap2Width) / (uGap2Width + uRhombusWidth + uRhombusCenterWidth));
-
-        vec3 color = getColor(t * factor / 2 + vec2(xOffset, yOffset));
-        fragColor = vec4(color, 1);
+        int index = 0;
+        while (uColorChangeDistances[index] < minDistance)
+            index++;
+        fragColor = vec4(uColors[index], 1);
     }
-};
+});
 
 
-class App : IApp
+class App : IApp, ITerminate
 {
     Uniforms uniforms;
-    A.ShaderProgram program;
+    HotreloadShaderProgram!Uniforms program;
     A.Model squareModel;
     A.Object square;
 
     void setup()
     {
-        program = A.ShaderProgram();
-        assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
-
+        load(uniforms);
+        reinitializeHotloadShaderProgram(program, vertexShaderSource, fragmentShaderSource);
         squareModel = createModel(makeSquare!Attribute, program.id);
         square = makeObject(&squareModel);
     }
@@ -134,5 +117,10 @@ class App : IApp
     void doImgui()
     {
         .doImgui(&uniforms);
+    }
+
+    void terminate()
+    {
+        save(uniforms);
     }
 }
