@@ -7,6 +7,12 @@ struct Uniforms
     @Vertex mat4 uModelViewProjection;
 
     @Fragment {
+        vec2[4] uControlPoints = [
+            vec2(0.25, 0.5),
+            vec2(0.5, 0.25),
+            vec2(0.75, 0.5),
+            vec2(0.5, 0.75),
+        ];
         @Color vec3[5] uColors = [
             vec3(1, 1, 1),
             vec3(1, 0, 0),
@@ -14,17 +20,20 @@ struct Uniforms
             vec3(0, 0, 1),
             vec3(1, 1, 1)   
         ];
-        @Color  vec3[2] uMixinColors = [
+        @Color vec3[2] uMixinColors = [
             vec3(1, 1, 1),
             vec3(0, 0, 0)
         ];
         @Range(0, 1)    float[4] uColorChangeDistances = [ 0.25, 0.5, 0.75, 1.0 ];
         @Range(0, 20)   float uNumPatterns = 2;
-        @Range(0, 5)    float uFluffDisplacementFactor = 1;
-        @Range(0, 100)  float uFluffLocality = 1;
-        @Range(0, 20)   float uFluffChangeSpeed = 1;
+        
+        @Range(0, 2000) float uFluffNoiseLocality = 1;
+        @Range(0, 0.2)  float uFluffNoiseEffect = 1;
+        
         @Range(0, 1)    float uMixinColorEffect = 0.5;
-        @Range(0, 500)  float uMixinLocality = 1;
+        @Range(0, 20)   float uMixinLocality = 1;
+
+        @Edit vec2 uScale = vec2(1, 1);
     }
 
     @ValuesSetCallback
@@ -68,35 +77,27 @@ immutable fragmentShaderSource = A.fragmentShaderSource(q{
     {
         vec2 coord = vTexCoord;
 
-        coord -= vec2(0.5, 0.5);
-        coord *= sqrt(2);
-        coord += vec2(0.5, 0.5);
+        // coord -= vec2(0.5, 0.5);
+        // coord *= sqrt(2);
+        coord *= uScale;
+        // coord += vec2(0.5, 0.5);
 
         coord *= uNumPatterns;
         coord = mod(coord, vec2(1, 1));
 
-        float randomValue = noise(vTexCoord * uFluffLocality);
 
-        vec2[4] points;
-        // left
-        points[0] = vec2(0.25, 0.5);
-        // up
-        points[1] = vec2(0.5, 0.25);
-        // right
-        points[2] = vec2(0.75, 0.5);
-        // bottom
-        points[3] = vec2(0.5, 0.75);
-
-
-        float minDistance = manhattanDistance(coord, points[0]);
+        float minDistance = manhattanDistance(coord, uControlPoints[0]);
         for (int i = 1; i < 4; i++)
         {
-            float distance = manhattanDistance(coord, points[i]);
+            float distance = manhattanDistance(coord, uControlPoints[i]);
             if (distance < minDistance)
                 minDistance = distance;
         }
         minDistance *= 2;
-        minDistance += sin(randomValue * radians(180.0) * uFluffChangeSpeed) * uFluffDisplacementFactor / uFluffLocality;
+
+        float fluffRandomNoise = noise(vTexCoord * uFluffNoiseLocality * uNumPatterns);
+        float fluffDisplacement = (fluffRandomNoise - 0.5) * uFluffNoiseEffect;
+        minDistance += fluffDisplacement;
 
         vec3 color;
 
@@ -116,11 +117,15 @@ immutable fragmentShaderSource = A.fragmentShaderSource(q{
             color = uColors[index];
         }
 
-        float randomValue2 = noise(vTexCoord * uMixinLocality);
-        float sin2 = abs(sin(randomValue2 * radians(180.0)));
-        vec3 mixinColor = sin2 * uMixinColors[0] + (1 - sin2) * uMixinColors[1]; 
-        // color = color * (1 - uMixinColorEffect) + uMixinColorEffect * mixinColor;
-        color = color * (1 - uMixinColorEffect) + color * uMixinColorEffect * randomValue2;
+        float mixinRandom = noise(vTexCoord * uMixinLocality * uFluffNoiseLocality * uNumPatterns);
+        vec3 mixinColor = mixinRandom * uMixinColors[0] + (1 - mixinRandom) * uMixinColors[1]; 
+
+        // color = color * (1 - uMixinColorEffect) + color * uMixinColorEffect * mixinRandom;
+        // vec3 antiColor = vec3(1, 1, 1) - color;
+        // color = antiColor;
+        // color = mix(color, antiColor, uMixinColorEffect * mixinRandom);
+
+        color = color * (1 - uMixinColorEffect) + uMixinColorEffect * mixinColor;
         fragColor = vec4(color, 1);
     }
 }, [&importNoise]);

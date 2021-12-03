@@ -65,7 +65,7 @@ version(Windows) pragma(mangle, "?InputInt4@ImGui@@YA_NPEBDQEAHH@Z") //bool __cd
   bool InputInt4(const(char)* label, int* /*const*/ v, ImGuiInputTextFlags extra_flags = 0); else
 bool InputInt4(const(char)* label, int* /*const*/ v, ImGuiInputTextFlags extra_flags = 0);
 
-version(Windows) pragma(mangle, "?SliderFloat2@ImGui@@YA_NPEBDQEAMMM0M@Z") //bool __cdecl ImGui::SliderFloat2(char const *,float * const,float,float,char const *,float) 
+version(Windows) pragma(mangle, "?SliderFloat2@ImGui@@YA_NPEBDQEAMMM0H@Z") //bool __cdecl ImGui::SliderFloat2(char const *,float * const,float,float,char const *,float) 
   bool SliderFloat2(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f); else
 bool SliderFloat2(const(char)* label, float* /*const*/ v, float v_min, float v_max, const(char)* format = "%.3f", float power = 1.0f);
 
