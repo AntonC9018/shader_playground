@@ -1031,6 +1031,7 @@ struct HotreloadShaderProgram(TUniforms)
 
     void use()
     {
+        assert(isLinked());
         glUseProgram(id);
     }
 
