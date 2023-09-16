@@ -81,7 +81,11 @@ struct Model(TAttribute)
         static assert(__traits(hasMember, TProgram, "setUniforms"));
         shaderProgram.setUniforms(uniforms);
 
-        glDrawElements(GL_TRIANGLES, cast(int) modelData.indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
+        glDrawElements(
+            GL_TRIANGLES,
+            cast(int) modelData.indexData.length * 3,
+            GL_UNSIGNED_INT,
+            null);
         
         // parametrizationFunction(this);
     }

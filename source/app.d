@@ -7,7 +7,7 @@ struct TestUniforms
         @Color             vec3 uColor = vec3(1, 1, 1);
         @Range(0, 1)       float uAmbient = 0.2;
         @Range(0, 1)       float uDiffuse = 0.5;
-        @Edit              vec3 uLightPosition = vec3(0, 5, 1);
+        @Edit              vec3 uLightPosition = vec3(5, 3, 5);
         Texture2D uTexture;
         
         // Built-in
@@ -70,6 +70,16 @@ immutable string fragmentShaderText = SHADER_HEADER
     }
 };
 
+Matrix!(float, 4) translationRotationScale(
+    vec3 translation,
+    Quaternion!(float) rotation,
+    vec3 scale)
+{
+    return mat4.identity()
+        * translationMatrix(translation) 
+        * rotation.toMatrix4x4() 
+        * scaleMatrix(scale);
+}
 
 class App : IApp
 {
@@ -78,12 +88,16 @@ class App : IApp
     ShaderProgram!TestUniforms program;
     
     Model_t sphereModel;
-    Model_t prismModel;
+    Model_t cubeModel;
     Object_t sphere;
-    Object_t prism;
+    Object_t cube;
     TextObject text;
 
     TextureManager textureManager;
+
+    bool isAnimating;
+    float animationSpeed = 1;
+    float time = 0;
 
     void setup()
     {
@@ -91,12 +105,18 @@ class App : IApp
         program = ShaderProgram!TestUniforms();
         assert(program.initialize(vertexShaderText, fragmentShaderText), "Shader program failed to initialize");
 
+        load(uniforms);
+
         enum recursionCount = 3;
-        sphereModel = Model_t(makeSphere!TestAttribute(recursionCount));
-        prismModel = Model_t(makeCube!TestAttribute());
+        sphereModel = createModel(
+            makeSphere!TestAttribute(recursionCount),
+            program.id);
+        cubeModel = createModel(
+            makeCube!TestAttribute(),
+            program.id);
         
-        sphere = Object_t(&sphereModel, translationMatrix(vec3(1, 1, 2)));
-        prism = Object_t(&prismModel);
+        sphere = makeObject(&sphereModel, translationMatrix(vec3(1, 1, 2)));
+        cube = makeObject(&cubeModel);
 
         text = TextObject("Hello World!");
         text.transform = translationMatrix(vec3(2, 0, 0));
@@ -107,11 +127,31 @@ class App : IApp
 
     void loop(double dt)
     {
+        if (isAnimating)
+        {
+            {
+                const rotation = rotationMatrix!float(0, animationSpeed * dt);
+                sphere.transform = sphere.transform * rotation;
+            }
+            {
+                time += animationSpeed * cast(float) dt;
+                import std.math;
+                const r = rotationQuaternion(vec3(1, 1, 1).normalized, time);
+                const t = vec3(1, 0, 0) * 3 * sin(time);
+                const scaleX = sin(time + 1333) * 1 + 1.5f;
+                const scaleY = sin(2 * time + 133) * 1 + 1.5f;
+                const scaleZ = sin(3 * time + 533) * 1 + 1.5f;
+                const s = vec3(scaleX, scaleY, scaleZ);
+                const transform = translationRotationScale(t, r, s);
+                cube.transform = transform;
+            }
+        }
+
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
 
         sphere.draw(&program, &uniforms);
-        prism.draw(&program, &uniforms);
+        cube.draw(&program, &uniforms);
 
         text.draw();
     }
@@ -120,5 +160,12 @@ class App : IApp
     {
         .doImgui(&uniforms);
         textureManager.doImgui((t) { uniforms.uTexture = t.texture; });
+        ImGui.Checkbox("Animate?", &isAnimating);
+        ImGui.SliderFloat("Animation Speed", &animationSpeed, 0, 5);
+    }
+
+    void terminate()
+    {
+        save(uniforms);
     }
 }
