@@ -135,6 +135,17 @@ if (is(T == float))
     ImGui.SliderFloat(name.toStringz, memory, range.a, range.b);
 }
 
+private void doRange(string name, T)(Range range, T* memory)
+if (is(T == int))
+{
+    ImGui.InputInt(name.toStringz, memory);
+
+    if (*memory < cast(int) range.a) 
+        *memory = cast(int) range.a;
+    else if (*memory > cast(int) range.b)
+        *memory = cast(int) range.b;
+}
+
 private template UniformInfoThing(alias field)
 {
     static if (is(typeof(field) : T[N], T, size_t N))

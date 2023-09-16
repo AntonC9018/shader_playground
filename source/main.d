@@ -48,6 +48,12 @@ void main(string[] args)
             run([new App()]);
             break;
         }
+        case "shapes":
+        {
+            import shapes : App;
+            run([new App()]);
+            break;
+        }
     }
     shutdown();
 }

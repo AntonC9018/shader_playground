@@ -72,8 +72,8 @@ class App : IApp
         squareModel = createModel(makeSquare!Attribute, program.id);
         square = makeObject(&squareModel);
 
-        textureManager.setup();
-        uniforms.uTexture = *textureManager.selectTexture("covor.png");
+        textureManager.setup((t) { uniforms.uTexture = t.texture; });
+        textureManager.selectTexture("covor.png");
     }
 
     void loop(double dt)
@@ -85,6 +85,6 @@ class App : IApp
     void doImgui()
     {
         .doImgui(&uniforms);
-        textureManager.doImgui((t) { uniforms.uTexture = t.texture; });
+        textureManager.doImgui();
     }
 }

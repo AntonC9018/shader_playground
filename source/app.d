@@ -81,7 +81,7 @@ Matrix!(float, 4) translationRotationScale(
         * scaleMatrix(scale);
 }
 
-class App : IApp
+class App : IApp, ITerminate
 {
     import shaderplayground.object;
     TestUniforms uniforms;
@@ -121,8 +121,7 @@ class App : IApp
         text = TextObject("Hello World!");
         text.transform = translationMatrix(vec3(2, 0, 0));
 
-        textureManager.setup();
-        uniforms.uTexture = textureManager.currentTexture.texture;
+        textureManager.setup((t) { uniforms.uTexture = t.texture; });
     }
 
     void loop(double dt)
@@ -159,7 +158,7 @@ class App : IApp
     void doImgui()
     {
         .doImgui(&uniforms);
-        textureManager.doImgui((t) { uniforms.uTexture = t.texture; });
+        textureManager.doImgui();
         ImGui.Checkbox("Animate?", &isAnimating);
         ImGui.SliderFloat("Animation Speed", &animationSpeed, 0, 5);
     }

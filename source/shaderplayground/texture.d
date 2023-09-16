@@ -100,8 +100,9 @@ struct TextureManager
 
     TextureThing[string] textures;
     TextureThing* currentTexture;
+    void delegate(TextureThing*) onChanged;
 
-    void setup()
+    void setup(void delegate(TextureThing*) onChanged = null)
     {
         import std.file;
         // TODO: watch the folder and add files when they appear there
@@ -111,6 +112,10 @@ struct TextureManager
             textures[t.name] = t;
             currentTexture = t.name in textures;
         }
+
+        this.onChanged = onChanged;
+        if (onChanged !is null)
+            onChanged(currentTexture);
     }
 
     Texture2D* selectTexture(string name)
@@ -118,12 +123,14 @@ struct TextureManager
         if (auto p = name in textures)
         {
             currentTexture = p;
+            if (onChanged !is null)
+                onChanged(currentTexture);
             return &p.texture;
         }
         return null;
     }
 
-    void doImgui(void delegate(TextureThing*) onChanged)
+    void doImgui()
     {
         import imgui;
         if (ImGui.BeginCombo("Texture", currentTexture.name.nullTerminated))
@@ -134,7 +141,8 @@ struct TextureManager
                 if (ImGui.Selectable(t.name.nullTerminated, isSelected))
                 {
                     currentTexture = &t;
-                    onChanged(currentTexture);
+                    if (onChanged !is null)
+                        onChanged(currentTexture);
                 }
                 if (isSelected)
                     ImGui.SetItemDefaultFocus();
