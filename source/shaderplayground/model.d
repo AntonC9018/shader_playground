@@ -51,7 +51,7 @@ struct Model(TAttribute)
     mat4 localTransform; 
     uint vaoId;
 
-    this(ModelData!TAttribute modelData)
+    private this(ModelData!TAttribute modelData)
     {
         this.modelData = modelData;
         this.localTransform = mat4.identity;
