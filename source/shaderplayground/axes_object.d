@@ -41,17 +41,15 @@ immutable lineFragmentShaderSource = LineA.fragmentShaderSource(q{
 
 struct AxesContext
 {
-    HotreloadShaderProgram!LineUniforms lineProgram;
+    ShaderProgram!LineUniforms lineProgram;
     VertexBuffer!LineAttribute lineVertexBuffer;
     uint lineVaoId;
     static immutable int lineVertexCount = 6;
 
     void setup()
     {
-        reinitializeHotloadShaderProgram(
-            lineProgram,
-            lineVertexShaderSource,
-            lineFragmentShaderSource);
+        lineProgram.initialize(lineVertexShaderSource, lineFragmentShaderSource);
+
         // Set up lines' array buffers
         vec3[lineVertexCount] lineVertexPositions = [
             vec3(0, 1, 0), vec3(0, -1, 0),
@@ -80,7 +78,6 @@ struct AxesContext
     {
         glLineWidth(lineWidth);
         glBindVertexArray(lineVaoId);
-        lineVertexBuffer.bind();
         lineProgram.use();
         LineUniforms lineUniforms;
         setModelRelatedUniforms(transform, &lineUniforms);
