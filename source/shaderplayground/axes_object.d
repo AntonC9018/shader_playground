@@ -39,33 +39,38 @@ immutable lineFragmentShaderSource = LineA.fragmentShaderSource(q{
     }
 });
 
+struct AxesConfig
+{
+    enum int lineVertexCount = 6;
+    vec3[lineVertexCount] vertexColors = [
+        vec3(1, 0, 0), vec3(1, 0, 0),
+        vec3(0, 1, 0), vec3(0, 1, 0),
+        vec3(0, 0, 1), vec3(0, 0, 1),
+    ];
+    float size = 5;
+}
+
 struct AxesContext
 {
     ShaderProgram!LineUniforms lineProgram;
     VertexBuffer!LineAttribute lineVertexBuffer;
     uint lineVaoId;
-    static immutable int lineVertexCount = 6;
 
-    void setup()
+    void setup(AxesConfig config)
     {
         lineProgram.initialize(lineVertexShaderSource, lineFragmentShaderSource);
 
         // Set up lines' array buffers
-        vec3[lineVertexCount] lineVertexPositions = [
-            vec3(0, 1, 0), vec3(0, -1, 0),
+        vec3[config.lineVertexCount] lineVertexPositions = [
             vec3(1, 0, 0), vec3(-1, 0, 0),
+            vec3(0, 1, 0), vec3(0, -1, 0),
             vec3(0, 0, 1), vec3(0, 0, -1),
-        ] * 100;
-        vec3[lineVertexCount / 2] lineColors = [
-            vec3(1, 0, 0),
-            vec3(0, 1, 0),
-            vec3(0, 0, 1),
-        ];
-        LineAttribute[lineVertexCount] lineVertices;
-        foreach (i; 0 .. lineVertexCount)
+        ] * config.size;
+        LineAttribute[config.lineVertexCount] lineVertices;
+        foreach (i; 0 .. config.lineVertexCount)
         {
             lineVertices[i].aPosition = lineVertexPositions[i];
-            lineVertices[i].aColor = lineColors[i / 2];
+            lineVertices[i].aColor = config.vertexColors[i];
         }
 
         glGenVertexArrays(1, &lineVaoId);
@@ -82,7 +87,7 @@ struct AxesContext
         LineUniforms lineUniforms;
         setModelRelatedUniforms(transform, &lineUniforms);
         lineProgram.setUniforms(&lineUniforms);
-        glDrawArrays(GL_LINES, 0, lineVertexCount);
+        glDrawArrays(GL_LINES, 0, AxesConfig.lineVertexCount);
     }
 }
 

@@ -81,7 +81,7 @@ class App : IApp, ITerminate
 {
     Uniforms uniforms;
     HotreloadShaderProgram!Uniforms program;
-    A.Model sphereModel;
+    A.Model[3] models;
     mat4[3] sphereTransform;
     TextureManager textureManager;
     AxesContext axesContext;
@@ -96,7 +96,19 @@ class App : IApp, ITerminate
             fragmentShaderSource);
 
         const int recursionLevel = 3;
-        sphereModel = createModel(makeSphere!Attribute(recursionLevel), program.id);
+
+        {
+            auto circlePoints = getUnclosedCircleBasePoints!Attribute(20);
+            PathOnPointConfig config =  
+            {
+                basePathPoints : circlePoints,
+                topPointPosition : vec3(0, 0, 1),
+                numSections : 10,
+                isClosed : true,
+            };
+            auto hollowPyramid = makePathOntoPointData!Attribute(config);
+            models[] = createModel(hollowPyramid, program.id);
+        }
 
         float currentScale = 1;
         float sphereRadius = 0.75;
@@ -116,9 +128,18 @@ class App : IApp, ITerminate
 
         textureManager.setup((t) { uniforms.uTexture = t.texture; });
 
-        axesContext.setup();
-        const float lineWidth = 5;
-        axesObject = AxesObject(&axesContext, mat4.identity, lineWidth);
+        {
+            AxesConfig config;
+            config.vertexColors = [
+                vec3(1, 0, 0), vec3(0, 0, 0), 
+                vec3(0, 1, 0), vec3(0, 0, 0), 
+                vec3(0, 0, 1), vec3(0, 0, 0), 
+            ];
+            config.size = 3;
+            axesContext.setup(config);
+            const float lineWidth = 5;
+            axesObject = AxesObject(&axesContext, mat4.identity, lineWidth);
+        }
     }
     
     void loop(double dt)
@@ -127,8 +148,8 @@ class App : IApp, ITerminate
             transform *= rotationMatrix!float(i % 3, dt);
 
         // There's no instanced rendering in this engine.
-        foreach (transform; sphereTransform)
-            sphereModel.draw(&program, &uniforms, transform);
+        foreach (i, transform; sphereTransform)
+            models[i].draw(&program, &uniforms, transform);
 
         axesObject.draw();
     }
