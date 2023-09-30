@@ -419,7 +419,7 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
 
     int numBasePoints = cast(int) config.basePathPoints.length;
     int numVertices = numBasePoints * (config.numSections + 1);
-    int numTrianglesPerSection = numBasePoints * 2 + (config.isClosed ? 2 : 0);
+    int numTrianglesPerSection = (numBasePoints - 1) * 2 + (config.isClosed ? 2 : 0);
     int numTriangles = numTrianglesPerSection * config.numSections;
 
     TAttribute[] vertexData = new TAttribute[numVertices];
@@ -430,10 +430,10 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
     {
         vec3 p = config.basePathPoints[normalIndex];
         p.z = 0;
-        auto diff = config.topPointPosition - p;
-        const axis = p.cross(diff);
-        rotateAroundAxis(p, axis, diff, cast(float) std.math.PI_2);
-        normals[normalIndex] = -p.normalized;
+        vec3 diff = config.topPointPosition - p;
+        vec3 axis = p.cross(diff);
+        vec3 normal = diff.cross(axis);
+        normals[normalIndex] = normal.normalized;
     }
 
     // vec2 centerPoint = sum(config.basePathPoints) / cast(float) numBasePoints;
@@ -442,7 +442,7 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
 
     foreach (levelIndex; 0 .. config.numSections + 1)
     {
-        float levelProgress = levelIndex / cast(float) config.numSections;
+        float levelProgress = levelIndex / cast(float) (config.numSections + 1);
         vec3 levelOffset = config.topPointPosition * levelProgress;
         float levelScale = 1 - levelProgress;
         foreach (levelVertexIndex; 0 .. numBasePoints)
@@ -470,7 +470,7 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
         int levelIndex = sectionIndex + 1;
         int prevLevelIndexOffset = prevLevelIndex * numBasePoints;
         int levelIndexOffset = levelIndex * numBasePoints;
-        foreach (vertexIndex; 0 .. numBasePoints + (config.isClosed ? 1 : 0))
+        foreach (vertexIndex; 0 .. numBasePoints - 1 + (config.isClosed ? 1 : 0))
         {
             // c---d
             // | \ |
@@ -488,25 +488,33 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
     return ModelData!TAttribute(vertexData, tris);
 }
 
+struct CreateCircleConfig
+{
+    uint numPoints;
+    bool isClosedLoop;
+}
 
-vec2[] getUnclosedCircleBasePoints(TAttribute)(uint numSplits)
-    in (numSplits >= 3)
+vec2[] getCircleBasePoints(TAttribute)(CreateCircleConfig config)
+    in (config.numPoints >= 3)
 {
     import std.math;
     float radius = 0.5f;
-    vec2 point = vec2(radius, 0);
-    float anglePerSplit = 2 * PI / cast(float) numSplits;
-    vec2[] result = new vec2[numSplits];
+    float anglePerSplit = 2 * PI / cast(float) config.numPoints;
+    vec2[] result = new vec2[config.numPoints + (config.isClosedLoop ? 1 : 0)];
 
     float angle = 0;
-    foreach (i; 0 .. numSplits)
+    vec2[] basePoints = result[0 .. config.numPoints];
+    foreach (i, ref resultItem; basePoints)
     {
         const sinAngle = sin(angle);
         const cosAngle = cos(angle);
         const v = vec2(cosAngle, sinAngle) * radius;
-        result[i] = v;
+        resultItem = v;
         angle += anglePerSplit;
     }
+
+    if (config.isClosedLoop)
+        result[$ - 1] = result[0];
 
     return result;
 }
