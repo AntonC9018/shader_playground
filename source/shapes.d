@@ -278,7 +278,7 @@ class App : IApp, ITerminate
         }
 
         axesObject.draw();
-        // NOTE: the program is not unbound after this.
+        // NOTE: the line program has not been unbound at this point.
         static if (_enableDebugThings)
         {
             glBindVertexArray(linesVaoId);
