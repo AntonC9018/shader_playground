@@ -433,7 +433,7 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
         auto diff = config.topPointPosition - p;
         const axis = p.cross(diff);
         rotateAroundAxis(p, axis, diff, cast(float) std.math.PI_2);
-        normals[normalIndex] = p.normalized;
+        normals[normalIndex] = -p.normalized;
     }
 
     // vec2 centerPoint = sum(config.basePathPoints) / cast(float) numBasePoints;

@@ -43,6 +43,7 @@ immutable vertexShaderSource = A.vertexShaderSource(q{
     out vec3 vNormal;
     out vec4 vECPosition;
     out vec2 vTexCoord;
+    // out vec3 vaNormal;
 
     void main()
     {
@@ -50,6 +51,7 @@ immutable vertexShaderSource = A.vertexShaderSource(q{
         vECPosition = uModelView * vec4(aPosition, 1.0);
         vNormal = uModelViewInverseTranspose * aNormal;
         vTexCoord = aTexCoord;
+        // vaNormal = aNormal;
     }
 });
 
@@ -57,6 +59,7 @@ immutable fragmentShaderSource = A.fragmentShaderSource(q{
     in vec3 vNormal;
     in vec4 vECPosition;
     in vec2 vTexCoord;
+    // in vec3 vaNormal;
 
     out vec4 fragColor;
 
@@ -73,16 +76,28 @@ immutable fragmentShaderSource = A.fragmentShaderSource(q{
         float sum = ambient + diffuse;
         vec3 texColor = texture(uTexture, vTexCoord).xyz;
         fragColor = vec4(uColor * texColor * sum, 1.0);
+
+        // vec3 color = vNormal;
+        // color /= 2;
+        // color += vec3(0.5, 0.5, 0.5);
+        // fragColor = vec4(color * sum, 1.0);
     }
 });
 
+struct TranslationScale
+{
+    vec3 position;
+    float scale;
+}
 
 class App : IApp, ITerminate
 {
+    enum int shapeCount = 3;
     Uniforms uniforms;
     HotreloadShaderProgram!Uniforms program;
-    A.Model[3] models;
-    mat4[3] sphereTransform;
+    A.Model[shapeCount] models;
+    TranslationScale[shapeCount] shapeTransforms;
+
     TextureManager textureManager;
     AxesContext axesContext;
     AxesObject axesObject;
@@ -95,35 +110,49 @@ class App : IApp, ITerminate
             vertexShaderSource,
             fragmentShaderSource);
 
-        const int recursionLevel = 3;
+        float currentScale = 1;
+        float shapeRadius = 0.5;
+        vec3 currentPosition = vec3(0, -shapeRadius, 1);
+
+        TranslationScale getTransform()
+        {
+            TranslationScale t = 
+            {
+                position: currentPosition,
+                scale: currentScale,
+            };
+            return t;
+        }
+
+        shapeTransforms[0] = getTransform();
+        foreach (int i; 1 .. 3)
+        {
+            float topOfPreviousBase = currentScale * shapeRadius;
+
+            currentScale /= 2;
+            shapeTransforms[i].scale = currentScale;
+
+            float toCenterOfCurrent = currentScale * shapeRadius;
+            currentPosition += vec3(0, topOfPreviousBase + toCenterOfCurrent, 0);
+            shapeTransforms[i].position = currentPosition;
+        }
 
         {
             auto circlePoints = getUnclosedCircleBasePoints!Attribute(20);
-            PathOnPointConfig config =  
+            auto pointsCopy = circlePoints.dup;
+            foreach (i; 0 .. models.length)
             {
-                basePathPoints : circlePoints,
-                topPointPosition : vec3(0, 0, 1),
-                numSections : 10,
-                isClosed : true,
-            };
-            auto hollowPyramid = makePathOntoPointData!Attribute(config);
-            models[] = createModel(hollowPyramid, program.id);
-        }
-
-        float currentScale = 1;
-        float sphereRadius = 0.75;
-        vec3 currentPosition = vec3(0, -1, 0);
-        mat4 getTransform()
-        {
-            return translationMatrix(currentPosition) 
-                * scaleMatrix(vec3(1, 1, 1) * currentScale);
-        }
-        sphereTransform[0] = getTransform();
-        foreach (int i; 1 .. 3)
-        {
-            currentPosition += vec3(0, currentScale * sphereRadius * 2, 0);
-            currentScale /= 2;
-            sphereTransform[i] = getTransform();
+                auto t = shapeTransforms[i];
+                PathOnPointConfig config =  
+                {
+                    basePathPoints : pointsCopy,
+                    topPointPosition : -t.position / t.scale,
+                    numSections : 10,
+                    isClosed : true,
+                };
+                auto hollowPyramid = makePathOntoPointData!Attribute(config);
+                models[i] = createModel(hollowPyramid, program.id);
+            }
         }
 
         textureManager.setup((t) { uniforms.uTexture = t.texture; });
@@ -144,12 +173,31 @@ class App : IApp, ITerminate
     
     void loop(double dt)
     {
-        foreach (i, ref transform; sphereTransform)
-            transform *= rotationMatrix!float(i % 3, dt);
+        // glDisable(GL_DEPTH_TEST);
+        // glCullFace(GL_BACK);
 
         // There's no instanced rendering in this engine.
-        foreach (i, transform; sphereTransform)
-            models[i].draw(&program, &uniforms, transform);
+        foreach (i, const t; shapeTransforms)
+        {
+            void draw(mat4 transform)
+            {
+                models[i].draw(&program, &uniforms, transform);
+            }
+
+            enum vec3 one = vec3(1, 1, 1);
+            {
+                mat4 transform = translationMatrix(t.position);
+                transform *= scaleMatrix(one * t.scale);
+                draw(transform);
+            }
+            {
+                enum uint xaxis = 0;
+                mat4 transform = rotationMatrix(xaxis, degtorad(180f));
+                transform *= translationMatrix(t.position);
+                transform *= scaleMatrix(one * t.scale);
+                draw(transform);
+            }
+        }
 
         axesObject.draw();
     }
