@@ -11,7 +11,7 @@ void main(string[] args)
     import std.stdio;
     string appname;
     if (args.length < 2)
-        appname = "abstract";
+        appname = "app";
     else
         appname = args[1];
 
@@ -41,9 +41,16 @@ void main(string[] args)
             run([new App()]);
             break;
         }
+        case "app":
         default: 
         {
             import app : App;
+            run([new App()]);
+            break;
+        }
+        case "shapes":
+        {
+            import shapes : App;
             run([new App()]);
             break;
         }

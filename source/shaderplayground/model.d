@@ -40,7 +40,6 @@ void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 }
 
 
-
 struct Model(TAttribute)
 {
     ModelData!TAttribute modelData;
@@ -49,9 +48,9 @@ struct Model(TAttribute)
     IndexBuffer indexBuffer;
     
     mat4 localTransform; 
-    uint vaoId;
+    VertexArrayObject vao;
 
-    this(ModelData!TAttribute modelData)
+    private this(ModelData!TAttribute modelData)
     {
         this.modelData = modelData;
         this.localTransform = mat4.identity;
@@ -64,8 +63,8 @@ struct Model(TAttribute)
 
         // This is a very important step.
         // Without this thing they vertices stomp over each other.
-        glGenVertexArrays(1, &vaoId);
-        glBindVertexArray(vaoId);
+        vao.setup();
+        vao.bind();
 
         setupVertexBuffer(vertexBuffer, programId, modelData.vertexData);
         enforce(indexBuffer.validateData(modelData.indexData, modelData.vertexData.length));
@@ -74,14 +73,18 @@ struct Model(TAttribute)
 
     void draw(TProgram, TUniforms)(TProgram* shaderProgram, TUniforms* uniforms, auto ref mat4 transform = mat4.identity)
     {
-        glBindVertexArray(vaoId);
+        vao.bind();
         shaderProgram.use();
 
         setModelRelatedUniforms(transform * localTransform, uniforms);
         static assert(__traits(hasMember, TProgram, "setUniforms"));
         shaderProgram.setUniforms(uniforms);
 
-        glDrawElements(GL_TRIANGLES, cast(int) modelData.indexData.length * 3, GL_UNSIGNED_INT, cast(void*) 0);
+        glDrawElements(
+            GL_TRIANGLES,
+            cast(int) modelData.indexData.length * 3,
+            GL_UNSIGNED_INT,
+            null);
         
         // parametrizationFunction(this);
     }
@@ -264,14 +267,10 @@ auto makeSphere(TAttribute)(uint recursionCount)
 
         foreach (i, position; geometry.positions)
         {
-            static if (__traits(hasMember, vertexData[i], "aPosition"))
-                vertexData[i].aPosition = position;
-
-            static if (__traits(hasMember, vertexData[i], "aNormal"))
-                vertexData[i].aNormal = position.normalized;
-
-            static if (__traits(hasMember, vertexData[i], "aTexCoord"))
-                vertexData[i].aTexCoord = (vec2(position.normalized) + 1) / 2;
+            alias Helper = AttributeHelper!TAttribute;
+            Helper.setPosition(vertexData[i], position);
+            Helper.setNormal(vertexData[i], position.normalized);
+            Helper.setTexCoord(vertexData[i], (vec2(position.normalized) + 1) / 2);
         }
 
         return ModelData!TAttribute(vertexData, geometry.indices);
@@ -279,6 +278,26 @@ auto makeSphere(TAttribute)(uint recursionCount)
 }
 
 
+template AttributeHelper(TAttribute)
+{
+    void setNormal(ref TAttribute attr, vec3 normal)
+    {
+        static if (__traits(hasMember, TAttribute, "aNormal"))
+            attr.aNormal = normal;
+    }
+
+    void setPosition(ref TAttribute attr, vec3 normal)
+    {
+        static if (__traits(hasMember, TAttribute, "aPosition"))
+            attr.aPosition = normal;
+    }
+
+    void setTexCoord(ref TAttribute attr, vec2 texCoord)
+    {
+        static if (__traits(hasMember, TAttribute, "aTexCoord"))
+            attr.aTexCoord = texCoord;
+    }
+}
 
 
 template makeCube(TAttribute)
@@ -355,13 +374,11 @@ template makeCube(TAttribute)
             {
                 auto vert = &result.vertices[vertexIndex];
 
-                static if (__traits(hasMember, TAttribute, "aNormal"))
-                    vert.aNormal = normal;
+                alias Helper = AttributeHelper!TAttribute;
+                Helper.setPosition(*vert, positions[triVertexIndex]);
+                Helper.setNormal(*vert, normal);
+                Helper.setTexCoord(*vert, vec2(positions[vertexIndexInCurrentQuad]));
 
-                static if (__traits(hasMember, TAttribute, "aTexCoord"))
-                    vert.aTexCoord = typeof(vert.aTexCoord)(positions[vertexIndexInCurrentQuad]);
-
-                vert.aPosition = positions[triVertexIndex];
                 vertexIndex++;
                 vertexIndexInCurrentQuad++;
             }
@@ -379,4 +396,124 @@ template makeCube(TAttribute)
         import std.stdio;
         return ModelData!TAttribute(vertices[], cast(ivec3[]) indices[]);
     }
+}
+
+
+struct PathOnPointConfig
+{
+    vec2[] basePathPoints;
+    vec3 topPointPosition;
+    int numSections;
+
+    /// Indicates if the last point should be connected to the first point.
+    bool isClosed;
+}
+
+/// Aka if you give it the upper point and a circle, it will give you a cone.
+/// The points must represent a convex surface.
+ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
+    in (config.basePathPoints.length >= 2 && config.numSections >= 1)
+{
+    static import std.math;
+
+    int numBasePoints = cast(int) config.basePathPoints.length;
+    int numVertices = numBasePoints * (config.numSections + 1);
+    int numTrianglesPerSection = (numBasePoints - 1) * 2 + (config.isClosed ? 2 : 0);
+    int numTriangles = numTrianglesPerSection * config.numSections;
+
+    TAttribute[] vertexData = new TAttribute[numVertices];
+    alias Helper = AttributeHelper!TAttribute;
+
+    vec3[] normals = new vec3[numBasePoints];
+    foreach (normalIndex; 0 .. numBasePoints)
+    {
+        vec3 p = config.basePathPoints[normalIndex];
+        p.z = 0;
+        vec3 diff = config.topPointPosition - p;
+        vec3 axis = p.cross(diff);
+        vec3 normal = diff.cross(axis);
+        normals[normalIndex] = normal.normalized;
+    }
+
+    // vec2 centerPoint = sum(config.basePathPoints) / cast(float) numBasePoints;
+    // foreach (normalIndex; 0 .. numBasePoints)
+    //     normals[normalIndex] = (config.basePathPoints[normalIndex] - centerPoint).normalized;
+
+    foreach (levelIndex; 0 .. config.numSections + 1)
+    {
+        float levelProgress = levelIndex / cast(float) (config.numSections);
+        vec3 levelOffset = config.topPointPosition * levelProgress;
+        float levelScale = 1 - levelProgress;
+        foreach (levelVertexIndex; 0 .. numBasePoints)
+        {
+            float vertexProgress = levelVertexIndex / cast(float) numBasePoints;
+            int vertexIndex = levelIndex * numBasePoints + levelVertexIndex;
+            TAttribute* vertex = &vertexData[vertexIndex];
+
+            vec3 position = config.basePathPoints[levelVertexIndex] * levelScale;
+            position.z = 0;
+            position += levelOffset;
+
+            Helper.setPosition(*vertex, position);
+
+            Helper.setNormal(*vertex, normals[levelVertexIndex]);
+            Helper.setTexCoord(*vertex, vec2(vertexProgress, levelProgress));
+        }
+    }
+
+    ivec3[] tris = new ivec3[numTriangles];
+    int triIndex = 0;
+    foreach (sectionIndex; 0 .. config.numSections)
+    {
+        int prevLevelIndex = sectionIndex;
+        int levelIndex = sectionIndex + 1;
+        int prevLevelIndexOffset = prevLevelIndex * numBasePoints;
+        int levelIndexOffset = levelIndex * numBasePoints;
+        foreach (vertexIndex; 0 .. numBasePoints - 1 + (config.isClosed ? 1 : 0))
+        {
+            // c---d
+            // | \ |
+            // a---b
+            uint a = cast(uint) (prevLevelIndexOffset + vertexIndex % numBasePoints);
+            uint b = cast(uint) (prevLevelIndexOffset + (vertexIndex + 1) % numBasePoints);
+            uint c = cast(uint) (levelIndexOffset + vertexIndex % numBasePoints);
+            uint d = cast(uint) (levelIndexOffset + (vertexIndex + 1) % numBasePoints);
+
+            tris[triIndex++] = ivec3(a, c, b);
+            tris[triIndex++] = ivec3(b, c, d);
+        }
+    }
+
+    return ModelData!TAttribute(vertexData, tris);
+}
+
+struct CreateCircleConfig
+{
+    uint numPoints;
+    bool isClosedLoop;
+}
+
+vec2[] getCircleBasePoints(TAttribute)(CreateCircleConfig config)
+    in (config.numPoints >= 3)
+{
+    import std.math;
+    float radius = 0.5f;
+    float anglePerSplit = 2 * PI / cast(float) config.numPoints;
+    vec2[] result = new vec2[config.numPoints + (config.isClosedLoop ? 1 : 0)];
+
+    float angle = 0;
+    vec2[] basePoints = result[0 .. config.numPoints];
+    foreach (i, ref resultItem; basePoints)
+    {
+        const sinAngle = sin(angle);
+        const cosAngle = cos(angle);
+        const v = vec2(cosAngle, sinAngle) * radius;
+        resultItem = v;
+        angle += anglePerSplit;
+    }
+
+    if (config.isClosedLoop)
+        result[$ - 1] = result[0];
+
+    return result;
 }
