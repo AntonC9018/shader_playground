@@ -130,6 +130,11 @@ struct TextureManager
         return null;
     }
 
+    Texture2D getTexture(string name)
+    {
+        return textures[name].texture;
+    }
+
     void doImgui()
     {
         import imgui;

@@ -1100,3 +1100,23 @@ bool reinitializeHotloadShaderProgram(T)(ref T program, ShaderSource[] sources..
     }
     return false;
 }
+
+struct VertexArrayObject
+{
+    uint vaoId;
+
+    void setup()
+    {
+        glGenVertexArrays(1, &vaoId);
+    }
+
+    void bind()
+    {
+        glBindVertexArray(vaoId);
+    }
+
+    void unbind()
+    {
+        glBindVertexArray(0);
+    }
+}

@@ -40,7 +40,6 @@ void setModelRelatedUniforms(TUniforms)(mat4 model, TUniforms* uniforms)
 }
 
 
-
 struct Model(TAttribute)
 {
     ModelData!TAttribute modelData;
@@ -49,7 +48,7 @@ struct Model(TAttribute)
     IndexBuffer indexBuffer;
     
     mat4 localTransform; 
-    uint vaoId;
+    VertexArrayObject vao;
 
     private this(ModelData!TAttribute modelData)
     {
@@ -64,8 +63,8 @@ struct Model(TAttribute)
 
         // This is a very important step.
         // Without this thing they vertices stomp over each other.
-        glGenVertexArrays(1, &vaoId);
-        glBindVertexArray(vaoId);
+        vao.setup();
+        vao.bind();
 
         setupVertexBuffer(vertexBuffer, programId, modelData.vertexData);
         enforce(indexBuffer.validateData(modelData.indexData, modelData.vertexData.length));
@@ -74,7 +73,7 @@ struct Model(TAttribute)
 
     void draw(TProgram, TUniforms)(TProgram* shaderProgram, TUniforms* uniforms, auto ref mat4 transform = mat4.identity)
     {
-        glBindVertexArray(vaoId);
+        vao.bind();
         shaderProgram.use();
 
         setModelRelatedUniforms(transform * localTransform, uniforms);
@@ -442,7 +441,7 @@ ModelData!TAttribute makePathOntoPointData(TAttribute)(PathOnPointConfig config)
 
     foreach (levelIndex; 0 .. config.numSections + 1)
     {
-        float levelProgress = levelIndex / cast(float) (config.numSections + 1);
+        float levelProgress = levelIndex / cast(float) (config.numSections);
         vec3 levelOffset = config.topPointPosition * levelProgress;
         float levelScale = 1 - levelProgress;
         foreach (levelVertexIndex; 0 .. numBasePoints)

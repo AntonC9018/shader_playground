@@ -90,6 +90,7 @@ class App : IApp, ITerminate
 
     A.Model[shapeCount] models;
     TranslationScale[shapeCount] shapeTransforms;
+    double currentRotation = 0.0;
 
     enum bool _enableDebugThings = false;
     static if (_enableDebugThings)
@@ -107,6 +108,9 @@ class App : IApp, ITerminate
     TextureManager textureManager;
     AxesContext axesContext;
     AxesObject axesObject;
+    
+    import shaderplayground.background;
+    BackgroundModel backgroundModel;
 
     void setup()
     {
@@ -225,13 +229,25 @@ class App : IApp, ITerminate
                 linesCount = lineVertexData.length / 2;
             }
         }
+
+        backgroundModel.initialize();
     }
     
     void loop(double dt)
     {
-        // glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+
+        {
+            auto texture = textureManager.getTexture("covor.png");
+            backgroundModel.draw(texture);
+        }
+
+        glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
+
+        currentRotation += dt * 0.5;
 
         // There's no instanced rendering in this engine.
         foreach (i, const t; shapeTransforms)
@@ -251,14 +267,19 @@ class App : IApp, ITerminate
 
                 glCullFace(faceToCull);
 
+                enum y = 1;
+                auto temp = rotationMatrix(y, cast(float) currentRotation);
+
                 {
-                    mat4 transform = translationMatrix(t.position);
+                    mat4 transform = temp;
+                    transform *= translationMatrix(t.position);
                     transform *= scaleMatrix(one * t.scale);
                     draw(transform);
                 }
                 {
                     enum uint xaxis = 0;
-                    mat4 transform = rotationMatrix(xaxis, degtorad(180f));
+                    mat4 transform = temp;
+                    transform *= rotationMatrix(xaxis, degtorad(180f));
                     transform *= translationMatrix(t.position);
                     transform *= scaleMatrix(one * t.scale);
                     draw(transform);
